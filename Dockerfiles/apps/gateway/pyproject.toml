@@ -1,0 +1,18 @@
+[project]
+name = "gateway"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "env",
+    "fastapi>=0.139.0",
+    "httpx>=0.28.1",
+    "logging",
+    "pika>=1.4.1",
+    "uvicorn>=0.50.2",
+]
+
+[tool.uv.sources]
+env = { workspace = true }
+logging = { workspace = true }

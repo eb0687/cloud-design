@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-db
+  labels:
+    app: billing-db
+spec:
+  clusterIP: None
+  selector:
+    app: billing-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: billing-db
+spec:
+  serviceName: billing-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: billing-db
+  template:
+    metadata:
+      labels:
+        app: billing-db
+    spec:
+      containers:
+        - name: postgres
+          image: eb0687/billing-db:latest
+          imagePullPolicy: Always
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: orders
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-credentials
+                  key: BILLING_POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-credentials
+                  key: BILLING_POSTGRES_PASSWORD
+          volumeMounts:
+            - name: billing-db-data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: billing-db-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

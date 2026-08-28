@@ -1,0 +1,6 @@
+.env
+.git
+.vagrant
+__pycache__/
+*.pyc
+data/
