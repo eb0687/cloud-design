@@ -1,0 +1,13 @@
+.vagrant/
+.kube/
+node-token
+*.log
+*.env
+*.env.local
+!.env.example
+Manifests/secret.yaml
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/tfplan
+reports/
