@@ -1,0 +1,67 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cloud-design-rules
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: cloud-design.application
+      rules:
+        - alert: CloudDesignServiceDown
+          expr: |
+            (kube_deployment_status_replicas_ready{namespace="default",deployment=~"api-gateway-app|inventory-app|rabbitmq"} == 0)
+              or
+            (kube_statefulset_status_replicas_ready{namespace="default",statefulset="billing-app"} == 0)
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Cloud-Design service is unavailable
+            description: "{{ $labels.job }} has been unreachable for more than five minutes."
+        - alert: CloudDesignHigh5xxRate
+          expr: |
+            sum by (job) (rate(http_requests_total{status=~"5.."}[5m]))
+              /
+            sum by (job) (rate(http_requests_total[5m])) > 0.05
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: High HTTP 5xx rate
+            description: "{{ $labels.job }} has more than 5% server errors."
+        - alert: CloudDesignContainerRestarts
+          expr: increase(kube_pod_container_status_restarts_total{namespace="default"}[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Container restarted
+            description: "{{ $labels.pod }} restarted during the last 15 minutes."
+        - alert: CloudDesignHPAAtMaximum
+          expr: kube_horizontalpodautoscaler_status_current_replicas == kube_horizontalpodautoscaler_spec_max_replicas
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: HPA is at maximum replicas
+            description: "{{ $labels.horizontalpodautoscaler }} has reached its replica limit."
+    - name: cloud-design.rabbitmq
+      rules:
+        - alert: CloudDesignRabbitMQQueueGrowing
+          expr: |
+            rabbitmq_queue_messages_ready > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: RabbitMQ queue has pending messages
+            description: "Queue {{ $labels.queue }} has pending messages for ten minutes."
+        - alert: CloudDesignRabbitMQNoConsumers
+          expr: rabbitmq_queue_consumers < 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: RabbitMQ queue has no consumers
+            description: "Queue {{ $labels.queue }} has no active consumers."
