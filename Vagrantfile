@@ -17,6 +17,9 @@ Vagrant.configure("2") do |config|
   config.vm.define "master" do |master|
     master.vm.hostname = "master"
     master.vm.network "private_network", ip: MASTER_IP
+    master.vm.provider "virtualbox" do |vb|
+      vb.memory = 4096
+    end
 
     master.vm.provision "shell",
       path: "Scripts/install-master.sh",
