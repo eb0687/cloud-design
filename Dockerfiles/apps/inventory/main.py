@@ -1,8 +1,10 @@
 from fastapi import FastAPI, HTTPException, Response, status
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 import uvicorn
 import packages.error.src.error as error
 from packages.env.src.env import load_env, InventoryEnvVars
 from packages.logging.src import logging
+from metrics import MetricsMiddleware
 from pydantic import BaseModel
 from sqlalchemy import String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
@@ -44,6 +46,12 @@ SessionLocal = sessionmaker(engine)
 Base.metadata.create_all(engine)
 
 app = FastAPI()
+app.add_middleware(MetricsMiddleware, service="inventory")
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics() -> Response:
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 class CreateMovie(BaseModel):

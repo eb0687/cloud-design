@@ -8,13 +8,17 @@ dependencies = [
     "env",
     "error",
     "logging",
+    "fastapi>=0.139.0",
     "pika>=1.4.1",
+    "metrics",
+    "prometheus-client>=0.26.0,<1.0.0",
     "psycopg[binary]>=3.3.4",
     "sqlalchemy>=2.0.51",
     "uvicorn>=0.50.2",
 ]
 
 [tool.uv.sources]
+metrics = { workspace = true }
 env = { workspace = true }
 logging = { workspace = true }
 error = { workspace = true }

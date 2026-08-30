@@ -3,11 +3,20 @@ from time import sleep
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from apps.billing.app.consumer import run_consumer
 from packages.logging.src import logging
+from metrics import MetricsMiddleware
 
 app = FastAPI()
+app.add_middleware(MetricsMiddleware, service="billing")
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics() -> Response:
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 log = logging.get_logger("billing")
 
 
