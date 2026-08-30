@@ -9,14 +9,14 @@ but is not applied because this project intentionally has no AWS account.
 
 The application consists of:
 
-| Component | Kind | Port | Responsibility |
-| --- | --- | ---: | --- |
-| `inventory-db` | PostgreSQL StatefulSet | 5432 | Movie inventory data |
-| `billing-db` | PostgreSQL StatefulSet | 5432 | Billing/order data |
-| `rabbitmq` | Deployment | 5672 | Billing message queue |
-| `inventory-app` | Deployment | 8080 | Inventory API |
-| `billing-app` | StatefulSet | 8080 | Billing consumer/API |
-| `api-gateway-app` | Deployment | 3000 | External API gateway |
+| Component         | Kind                   | Port | Responsibility        |
+| ----------------- | ---------------------- | ---: | --------------------- |
+| `inventory-db`    | PostgreSQL StatefulSet | 5432 | Movie inventory data  |
+| `billing-db`      | PostgreSQL StatefulSet | 5432 | Billing/order data    |
+| `rabbitmq`        | Deployment             | 5672 | Billing message queue |
+| `inventory-app`   | Deployment             | 8080 | Inventory API         |
+| `billing-app`     | StatefulSet            | 8080 | Billing consumer/API  |
+| `api-gateway-app` | Deployment             | 3000 | External API gateway  |
 
 The gateway is the only service exposed outside the cluster. Databases and
 RabbitMQ are reached through internal Kubernetes Services.
@@ -162,11 +162,6 @@ terraform -chdir=terraform fmt -check
 terraform -chdir=terraform init -backend=false
 terraform -chdir=terraform validate
 ```
-
-The AWS deployment, AWS CLI evidence, billing alerts, real cloud autoscaling,
-and AWS monitoring cannot be verified without an AWS account. Those limitations
-are intentional and must be stated during the audit rather than represented as
-completed deployment work.
 
 ## Local Monitoring
 
