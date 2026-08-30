@@ -4,6 +4,11 @@ metadata:
   name: billing-app
   labels:
     app: billing-app
+    observability.cloud-design.io/scrape: "true"
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: /metrics
+    prometheus.io/port: "8080"
 spec:
   clusterIP: None
   selector:
@@ -30,7 +35,7 @@ spec:
     spec:
       containers:
         - name: billing-app
-          image: eb0687/billing-app:latest
+          image: eb0687/billing-app:monitoring-5
           imagePullPolicy: Always
           ports:
             - name: http

@@ -15,13 +15,17 @@ metadata:
   name: rabbitmq
   labels:
     app: rabbitmq
+    observability.cloud-design.io/scrape: "true"
 spec:
   selector:
     app: rabbitmq
   ports:
-    - name: amqp
-      port: 5672
-      targetPort: amqp
+      - name: amqp
+        port: 5672
+        targetPort: amqp
+      - name: metrics
+        port: 15692
+        targetPort: metrics
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39,11 +43,13 @@ spec:
     spec:
       containers:
         - name: rabbitmq
-          image: eb0687/rabbitmq:latest
+          image: eb0687/rabbitmq:monitoring-1
           imagePullPolicy: Always
           ports:
             - name: amqp
               containerPort: 5672
+            - name: metrics
+              containerPort: 15692
           env:
             - name: RABBITMQ_DEFAULT_USER
               valueFrom:
