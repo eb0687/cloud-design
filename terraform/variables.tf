@@ -29,7 +29,7 @@ variable "vpc_cidr" {
 variable "availability_zones" {
   description = "Two availability zones for the high-level design."
   type        = list(string)
-  default     = ["eu-west-3a", "eu-west-3b", "eu-west-3c"]
+  default     = ["eu-west-3a", "eu-west-3b"]
 
   validation {
     condition     = length(var.availability_zones) >= 2
@@ -61,30 +61,7 @@ variable "mq_password" {
   sensitive   = true
 }
 
-variable "domain_name" {
-  description = "Fully qualified public API domain name managed in Route 53."
+variable "certificate_arn" {
+  description = "ACM certificate ARN for the proposed HTTPS load balancer."
   type        = string
-}
-
-variable "route53_zone_id" {
-  description = "Route 53 hosted zone ID for domain_name."
-  type        = string
-}
-
-variable "gateway_image_tag" {
-  description = "Immutable ECR tag for the gateway image."
-  type        = string
-  default     = "monitoring-5"
-}
-
-variable "inventory_image_tag" {
-  description = "Immutable ECR tag for the inventory image."
-  type        = string
-  default     = "monitoring-5"
-}
-
-variable "billing_image_tag" {
-  description = "Immutable ECR tag for the billing image."
-  type        = string
-  default     = "monitoring-5"
 }

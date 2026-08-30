@@ -1,14 +1,10 @@
 aws_region        = "eu-west-3"
 project_name      = "cloud-design"
 vpc_cidr          = "10.40.0.0/16"
-availability_zones = ["eu-west-3a", "eu-west-3b", "eu-west-3c"]
-domain_name        = "api.example.com"
-route53_zone_id    = "Z0000000000000000000"
+availability_zones = ["eu-west-3a", "eu-west-3b"]
 # Never commit real credentials. Use a local, ignored tfvars file if needed.
 database_username  = "replace-me"
 database_password  = "replace-me"
 mq_username        = "replace-me"
 mq_password        = "replace-me"
-gateway_image_tag   = "monitoring-5"
-inventory_image_tag = "monitoring-5"
-billing_image_tag   = "monitoring-5"
+certificate_arn    = "arn:aws:acm:eu-west-3:123456789012:certificate/replace-me"
