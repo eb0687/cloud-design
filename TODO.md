@@ -5,7 +5,7 @@ This checklist is based on `docs/PROJECT.md` and `docs/AUDIT.md`.
 ## Constraint: no AWS account
 
 - [x] Do not create an AWS account, subscribe to AWS, or deploy billable AWS resources.
-- [ ] Build and test the application locally with Docker and a local Kubernetes cluster (`kind`, `minikube`, or equivalent).
+- [x] Build and test the application locally with Docker and a local Kubernetes cluster (`kind`, `minikube`, or equivalent).
 - [x] Keep AWS Terraform, deployment manifests, and AWS architecture documentation as reviewed, non-applied deliverables.
 - [x] Mark every AWS-only item as `blocked: requires AWS credentials` rather than pretending it was deployed.
 - [x] Document the local substitute and the AWS equivalent for each cloud concern.
@@ -13,17 +13,17 @@ This checklist is based on `docs/PROJECT.md` and `docs/AUDIT.md`.
 ## Repository and source code
 
 - [x] Import or implement the six required services:
-  - [ ] Inventory PostgreSQL database on port `5432`.
-  - [ ] Billing PostgreSQL database on port `5432`.
-  - [ ] Inventory app on port `8080`.
-  - [ ] Billing app on port `8080`.
-  - [ ] RabbitMQ message broker.
-  - [ ] API gateway on port `3000`.
-- [ ] Verify the inventory app connects only to the inventory database.
-- [ ] Verify the billing app connects only to the billing database and consumes RabbitMQ messages.
-- [ ] Verify the API gateway forwards requests to the application services.
+  - [x] Inventory PostgreSQL database on port `5432`.
+  - [x] Billing PostgreSQL database on port `5432`.
+  - [x] Inventory app on port `8080`.
+  - [x] Billing app on port `8080`.
+  - [x] RabbitMQ message broker.
+  - [x] API gateway on port `3000`.
+- [x] Verify the inventory app connects only to the inventory database.
+- [x] Verify the billing app connects only to the billing database and consumes RabbitMQ messages.
+- [x] Verify the API gateway forwards requests to the application services.
 - [x] Add configuration through environment variables or secret references; do not commit credentials.
-- [ ] Add health and readiness endpoints for every application service.
+- [x] Add health and readiness endpoints for every application service.
 - [ ] Add automated tests for service behavior, database connectivity, gateway routing, and message consumption.
 
 ## Containerization
@@ -31,16 +31,16 @@ This checklist is based on `docs/PROJECT.md` and `docs/AUDIT.md`.
 - [x] Add one Dockerfile per service where appropriate.
 - [x] Use multi-stage builds, minimal runtime images, pinned dependencies, and non-root users where supported.
 - [x] Add `.dockerignore` files and ensure build contexts do not contain secrets or unnecessary files.
-- [ ] Build every image locally and record image sizes and build commands.
-- [ ] Run containers with resource limits and health checks.
+- [x] Build every image locally and record image sizes and build commands.
+- [x] Run containers with resource limits and health checks.
 - [ ] Add a local `docker compose` stack for the complete application and its dependencies.
 - [ ] Confirm the stack starts from a clean checkout and services can communicate by service name.
 
 ## Local orchestration and deployment
 
-- [ ] Choose and document `kind`, `minikube`, or another local Kubernetes runtime.
+- [x] Choose and document `kind`, `minikube`, or another local Kubernetes runtime.
 - [x] Create Kubernetes manifests or Helm configuration for deployments, services, config, and generated secrets.
-- [ ] Deploy the complete stack locally and verify it survives an individual pod restart.
+- [x] Deploy the complete stack locally and verify it survives an individual pod restart.
 - [x] Expose only the API gateway externally; keep databases and RabbitMQ internal to the cluster.
 - [ ] Add local ingress or load-balancing configuration and verify traffic reaches healthy replicas.
 - [x] Document the AWS mapping without applying it: Kubernetes/ECS, load balancer, VPC, IAM, RDS, RabbitMQ, and Cognito equivalents.
@@ -72,10 +72,10 @@ This checklist is based on `docs/PROJECT.md` and `docs/AUDIT.md`.
 - [x] Add local Prometheus and Grafana configuration with useful service, error, and resource dashboards.
 - [x] Document the AWS CloudWatch/Prometheus/Grafana/ELK equivalents without claiming AWS execution.
 - [x] Add alert rules for failed health checks, elevated errors, queue depth, and resource exhaustion.
-- [ ] Define replicas, readiness probes, liveness probes, and resource requests/limits.
+- [x] Define replicas, readiness probes, liveness probes, and resource requests/limits.
 - [ ] Add local autoscaling configuration where supported and test it with repeatable load generation.
 - [ ] Test service failure, pod restart, database unavailability, and broker unavailability; queued-message recovery is recorded in `docs/evidence/local-baseline.md`.
-- [ ] Record results, limitations, and which availability claims remain unverified without AWS.
+- [x] Record results, limitations, and which availability claims remain unverified without AWS.
 
 ## Architecture and cost analysis
 
@@ -90,9 +90,9 @@ This checklist is based on `docs/PROJECT.md` and `docs/AUDIT.md`.
 
 - [x] Create the required root `README.md` with prerequisites, setup, configuration, usage, tests, troubleshooting, and cleanup.
 - [x] Include both architecture diagrams and a component/port/dependency table.
-- [ ] Document exact Docker, Kubernetes, and Terraform commands used for local verification.
+- [x] Document exact Docker, Kubernetes, and Terraform commands used for local verification.
 - [ ] Include command output or screenshots for `docker ps`, Kubernetes status/logs, health checks, and load tests.
-- [ ] Include Terraform formatting and validation evidence; explicitly note that AWS apply and cloud verification are blocked.
+- [x] Include Terraform formatting and validation evidence; explicitly note that AWS apply and cloud verification are blocked.
 - [ ] Add a requirements-to-evidence checklist covering every item in `docs/AUDIT.md`.
 - [x] Document known limitations caused by not having AWS access.
 - [x] Add source code, deployment scripts, Dockerfiles, Kubernetes configuration, and Terraform configuration to the repository.

@@ -43,6 +43,10 @@ The three FastAPI targets exposed `http_requests_total`. RabbitMQ exposed
 `rabbitmq_queue_messages_ready` and
 `rabbitmq_queue_consumers`.
 
+The application metrics middleware excludes Kubernetes requests whose
+`User-Agent` begins with `kube-probe/`, so request-rate and 5xx panels represent
+application traffic rather than readiness and liveness probes.
+
 ## Dashboard and Rules
 
 - The Grafana health endpoint returned `database: ok`.
@@ -53,6 +57,18 @@ The three FastAPI targets exposed `http_requests_total`. RabbitMQ exposed
   `CloudDesignContainerRestarts`, `CloudDesignHPAAtMaximum`,
   `CloudDesignRabbitMQQueueGrowing`, and
   `CloudDesignRabbitMQNoConsumers`.
+
+The Service Availability panel uses Kubernetes ready-replica metrics rather
+than scrape history. Deployments use
+`kube_deployment_status_replicas_ready`; billing uses
+`kube_statefulset_status_replicas_ready`. A workload scaled to zero therefore
+displays `DOWN` instead of retaining its last successful scrape value.
+
+The inventory failure test scaled `inventory-app` to zero and sent a request
+through the gateway. It returned HTTP `503`, and the dashboard showed inventory
+as `DOWN`. After restoring one replica, the request returned HTTP `200` and the
+gauge returned to `UP`. The local high-5xx alert uses a one-minute pending
+period.
 
 Access Grafana locally with:
 

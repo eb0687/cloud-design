@@ -3,6 +3,11 @@
 This evidence records the local Vagrant/K3s verification performed after the
 storage-class correction.
 
+The cluster was later recreated with `./orchestrator.sh destroy` followed by
+`./orchestrator.sh create`. The current verification below reflects the fresh
+local deployment and the monitoring configuration documented in
+`docs/evidence/monitoring.md`.
+
 ## Storage
 
 Command:
@@ -54,3 +59,46 @@ Saved billing order 2
 ```
 
 This demonstrates queued-message recovery for the local deployment.
+
+## Inventory Failure and Recovery
+
+The inventory Deployment was scaled to zero:
+
+```sh
+KUBECONFIG=.kube/config kubectl scale deployment/inventory-app --replicas=0
+curl -i http://192.168.60.10:30000/api/movies/
+```
+
+The gateway returned HTTP `503 Service Unavailable`. The inventory workload
+was then restored with one replica and the same request returned HTTP `200 OK`.
+
+The Service Availability gauge changed to `DOWN` at zero ready replicas and
+returned to `UP` after recovery. The HTTP 5xx alert uses a one-minute pending
+period for local demonstration.
+
+## Current Verification Limits
+
+- Database-unavailability and broker-unavailability failure tests have not
+  been run in the current fresh cluster.
+- AWS deployment, AWS autoscaling, AWS monitoring, and AWS billing evidence
+  remain unverified because no AWS account is available.
+
+## Container and Terraform Checks
+
+The monitoring application images were built and pushed with the commands in
+`Monitoring/README.md`. The resulting local image sizes were:
+
+```text
+eb0687/api-gateway-app:monitoring-5 264MB
+eb0687/billing-app:monitoring-5     264MB
+eb0687/inventory-app:monitoring-5   264MB
+eb0687/rabbitmq:monitoring-1        102MB
+```
+
+Terraform formatting and validation completed successfully:
+
+```sh
+terraform -chdir=terraform fmt -check
+terraform -chdir=terraform init -backend=false -input=false
+terraform -chdir=terraform validate
+```
