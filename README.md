@@ -168,6 +168,18 @@ and AWS monitoring cannot be verified without an AWS account. Those limitations
 are intentional and must be stated during the audit rather than represented as
 completed deployment work.
 
+## Local Monitoring
+
+After rebuilding the monitoring images and reconciling the application
+manifests, install the local Prometheus/Grafana stack:
+
+```sh
+./Monitoring/install.sh
+```
+
+See `Monitoring/README.md` for port-forwarding, dashboard, and evidence
+instructions.
+
 ## Design Notes
 
 - Vagrant/K3s is retained because it is the previously tested local baseline.

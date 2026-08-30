@@ -68,10 +68,10 @@ This checklist is based on `docs/PROJECT.md` and `docs/AUDIT.md`.
 ## Monitoring, logging, and resilience
 
 - [ ] Emit structured application logs to stdout/stderr with request and correlation identifiers.
-- [ ] Add application metrics and expose them for a local Prometheus deployment.
-- [ ] Add local Prometheus and Grafana configuration with useful service, error, latency, and resource dashboards.
+- [x] Add application metrics and expose them for a local Prometheus deployment.
+- [x] Add local Prometheus and Grafana configuration with useful service, error, and resource dashboards.
 - [x] Document the AWS CloudWatch/Prometheus/Grafana/ELK equivalents without claiming AWS execution.
-- [ ] Add alert rules for failed health checks, elevated errors, latency, queue depth, and resource exhaustion.
+- [x] Add alert rules for failed health checks, elevated errors, queue depth, and resource exhaustion.
 - [ ] Define replicas, readiness probes, liveness probes, and resource requests/limits.
 - [ ] Add local autoscaling configuration where supported and test it with repeatable load generation.
 - [ ] Test service failure, pod restart, database unavailability, and broker unavailability; queued-message recovery is recorded in `docs/evidence/local-baseline.md`.

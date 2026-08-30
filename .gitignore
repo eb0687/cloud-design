@@ -12,3 +12,5 @@ terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/tfplan
 reports/
+Dockerfiles/.venv/
+**/__pycache__/
