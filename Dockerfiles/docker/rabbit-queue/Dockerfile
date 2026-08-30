@@ -5,5 +5,5 @@ RUN apk add --no-cache rabbitmq-server
 COPY docker/rabbit-queue/entrypoint.sh /usr/local/bin/rabbitmq-entrypoint
 RUN chmod +x /usr/local/bin/rabbitmq-entrypoint
 
-EXPOSE 5672
+EXPOSE 5672 15692
 ENTRYPOINT ["rabbitmq-entrypoint"]
