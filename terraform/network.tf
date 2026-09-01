@@ -29,8 +29,10 @@ resource "aws_subnet" "public" {
   cidr_block        = each.value
 
   tags = {
-    Name = "${local.name_prefix}-public-${each.key}"
-    Tier = "public"
+    "kubernetes.io/cluster/${local.name_prefix}" = "shared"
+    "kubernetes.io/role/elb"                     = "1"
+    Name                                         = "${local.name_prefix}-public-${each.key}"
+    Tier                                         = "public"
   }
 }
 
@@ -42,8 +44,10 @@ resource "aws_subnet" "private" {
   cidr_block        = each.value
 
   tags = {
-    Name = "${local.name_prefix}-private-${each.key}"
-    Tier = "private"
+    "kubernetes.io/cluster/${local.name_prefix}" = "shared"
+    "kubernetes.io/role/internal-elb"            = "1"
+    Name                                         = "${local.name_prefix}-private-${each.key}"
+    Tier                                         = "private"
   }
 }
 

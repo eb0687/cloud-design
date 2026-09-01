@@ -136,3 +136,14 @@ variable "eks_node_instance_types" {
     error_message = "eks_node_instance_types must contain at least one instance type."
   }
 }
+
+variable "aws_load_balancer_controller_chart_version" {
+  description = "AWS Load Balancer Controller Helm chart version."
+  type        = string
+  default     = "1.14.1"
+
+  validation {
+    condition     = can(regex("^[0-9]+\\.[0-9]+\\.[0-9]+$", var.aws_load_balancer_controller_chart_version))
+    error_message = "aws_load_balancer_controller_chart_version must use a semantic version, such as 1.14.1."
+  }
+}

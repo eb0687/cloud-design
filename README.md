@@ -16,6 +16,7 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | EKS control plane and managed node group | Defined; not provisioned |
 | Kubernetes base workload manifests | Defined; not deployed |
 | EBS CSI driver and AWS storage overlay | Defined; not provisioned |
+| AWS Load Balancer Controller | Defined; not provisioned |
 | Kubernetes deployment to AWS | Planned |
 | Monitoring, logging, autoscaling, and Cognito | Planned |
 
@@ -81,6 +82,7 @@ terraform/             AWS infrastructure configuration
   security.tf          Security groups and ingress/egress rules
   ecr.tf               Private application image repositories and retention rules
   eks.tf               EKS control plane, managed node group, IAM roles, and node template
+  load-balancer-controller.tf  ALB controller IAM role and Helm release
   outputs.tf           Network IDs for later infrastructure components
 kubernetes/
   base/                Portable orchestrator workload manifests
@@ -159,6 +161,8 @@ The VPC spans `eu-west-3a` and `eu-west-3b`, with a `/16` VPC CIDR. Public load-
 
 The public route table sends internet-bound traffic to an Internet Gateway. Both private subnets instead use one NAT gateway in the first public subnet, allowing private workloads to pull images and receive updates without accepting unsolicited inbound internet traffic. A single NAT gateway is an intentional development cost trade-off and a single-AZ failure point. A production environment should use a NAT gateway per Availability Zone or use VPC endpoints for supported AWS services.
 
+Public subnets are tagged for the AWS Load Balancer Controller to discover them when it creates internet-facing ALBs. Private subnets are separately tagged for internal ALBs. The controller is installed through a pinned Helm chart and has an IAM role bound only to its `kube-system/aws-load-balancer-controller` service account through EKS OIDC. Its permissions are the AWS-recommended policy for controller v2.14.1, stored in this repository for review and reproducibility.
+
 ### Container Images
 
 ECR repositories are defined for the three application images: `api-gateway-app`, `inventory-app`, and `billing-app`. Each repository is private, encrypted at rest, scanned on push, and configured with immutable tags. The deployment workflow will build an image, tag it with an immutable release version or commit SHA, push it to ECR, and update the Kubernetes manifest to use that exact image reference.
@@ -192,7 +196,7 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 
 ## Roadmap
 
-1. Add the AWS Load Balancer Controller prerequisite.
-2. Create AWS Kubernetes overlays for ingress, secrets, and ECR image locations.
+1. Create an AWS Ingress overlay for the API gateway.
+2. Create AWS Kubernetes overlays for secrets and ECR image locations.
 3. Configure TLS, Cognito, logging, monitoring, and autoscaling.
 4. Perform load, recovery, security, and cost validation on a real AWS account.
