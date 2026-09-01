@@ -81,3 +81,25 @@ variable "private_subnet_cidrs" {
     error_message = "private_subnet_cidrs must contain two valid IPv4 CIDR blocks."
   }
 }
+
+variable "allowed_ingress_cidrs" {
+  description = "IPv4 CIDR blocks permitted to access the public load balancer."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = alltrue([for cidr in var.allowed_ingress_cidrs : can(cidrnetmask(cidr))])
+    error_message = "allowed_ingress_cidrs must contain valid IPv4 CIDR blocks."
+  }
+}
+
+variable "api_gateway_port" {
+  description = "TCP port exposed by the API gateway application container."
+  type        = number
+  default     = 3000
+
+  validation {
+    condition     = var.api_gateway_port >= 1 && var.api_gateway_port <= 65535
+    error_message = "api_gateway_port must be between 1 and 65535."
+  }
+}

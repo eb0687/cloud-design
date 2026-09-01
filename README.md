@@ -11,6 +11,7 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | Local Kubernetes application | Assumed working from the supplied orchestrator project |
 | Terraform provider and inputs | Complete |
 | VPC and subnet routing | Defined; not provisioned |
+| Load balancer and EKS security groups | Defined; not provisioned |
 | EKS and ECR | Planned |
 | Kubernetes deployment to AWS | Planned |
 | Monitoring, logging, autoscaling, and Cognito | Planned |
@@ -74,6 +75,7 @@ terraform/             AWS infrastructure configuration
   variables.tf         Environment inputs and validation
   locals.tf            Naming convention and shared tags
   network.tf           VPC, subnets, internet gateway, NAT gateway, and routes
+  security.tf          Security groups and ingress/egress rules
   outputs.tf           Network IDs for later infrastructure components
 ```
 
@@ -139,7 +141,9 @@ The public route table sends internet-bound traffic to an Internet Gateway. Both
 
 - TLS will terminate at the ALB using AWS Certificate Manager.
 - Cognito will provide managed authentication for the public API.
-- Security groups will allow only required ingress between the load balancer and EKS workloads.
+- The ALB security group accepts ports `80` and `443` from configured public CIDRs. Port `80` will only redirect to HTTPS.
+- The ALB can reach EKS only on the API gateway port (`3000`); EKS allows that port only from the ALB security group.
+- EKS nodes accept unrestricted traffic only from other EKS nodes; Kubernetes NetworkPolicies will further restrict pod-to-pod traffic.
 - Kubernetes Secrets will not be committed. AWS Secrets Manager integration is planned for the deployed environment.
 - IAM roles for service accounts will give Kubernetes controllers narrowly scoped AWS access.
 - Network policies will restrict pod-to-pod traffic to required application paths.
