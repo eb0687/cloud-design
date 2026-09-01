@@ -103,3 +103,36 @@ variable "api_gateway_port" {
     error_message = "api_gateway_port must be between 1 and 65535."
   }
 }
+
+variable "kubernetes_version" {
+  description = "Supported Amazon EKS Kubernetes version selected at deployment time."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^[0-9]+\\.[0-9]+$", var.kubernetes_version))
+    error_message = "kubernetes_version must use a major.minor format, such as 1.34."
+  }
+}
+
+variable "eks_api_allowed_cidrs" {
+  description = "Trusted IPv4 CIDR blocks permitted to access the EKS public API endpoint."
+  type        = list(string)
+  nullable    = false
+
+  validation {
+    condition     = length(var.eks_api_allowed_cidrs) > 0 && alltrue([for cidr in var.eks_api_allowed_cidrs : can(cidrnetmask(cidr))])
+    error_message = "eks_api_allowed_cidrs must contain at least one valid IPv4 CIDR block."
+  }
+}
+
+variable "eks_node_instance_types" {
+  description = "EC2 instance types used by the EKS managed node group."
+  type        = list(string)
+  default     = ["t3.medium"]
+
+  validation {
+    condition     = length(var.eks_node_instance_types) > 0
+    error_message = "eks_node_instance_types must contain at least one instance type."
+  }
+}

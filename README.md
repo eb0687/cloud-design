@@ -13,7 +13,7 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | VPC and subnet routing | Defined; not provisioned |
 | Load balancer and EKS security groups | Defined; not provisioned |
 | ECR repositories | Defined; not provisioned |
-| EKS | Planned |
+| EKS control plane and managed node group | Defined; not provisioned |
 | Kubernetes deployment to AWS | Planned |
 | Monitoring, logging, autoscaling, and Cognito | Planned |
 
@@ -78,6 +78,7 @@ terraform/             AWS infrastructure configuration
   network.tf           VPC, subnets, internet gateway, NAT gateway, and routes
   security.tf          Security groups and ingress/egress rules
   ecr.tf               Private application image repositories and retention rules
+  eks.tf               EKS control plane, managed node group, IAM roles, and node template
   outputs.tf           Network IDs for later infrastructure components
 ```
 
@@ -117,6 +118,8 @@ The current configuration needs no AWS credentials because it defines no AWS res
 aws_region  = "eu-west-3"
 environment = "dev"
 aws_profile = "cloud-design"
+kubernetes_version    = "1.34"
+eks_api_allowed_cidrs = ["203.0.113.10/32"]
 ```
 
 `terraform/*.tfvars`, state files, and Terraform's plugin directory are excluded from Git. The provider lock file is committed so collaborators use the same provider version.
@@ -126,6 +129,10 @@ aws_profile = "cloud-design"
 ### EKS
 
 EKS is selected because the reference project is already expressed as Kubernetes manifests. This preserves Kubernetes services, deployments, StatefulSets, persistent volume claims, and horizontal autoscaling rather than translating the application into a different orchestration model.
+
+Terraform defines an EKS control plane in the private subnets, with API and audit logs sent to CloudWatch. A managed node group initially runs two on-demand `t3.medium` nodes, one in each Availability Zone. Nodes have encrypted `gp3` root volumes, require IMDSv2, and use narrowly scoped IAM policies for EKS operation and private ECR image pulls.
+
+The Kubernetes API has both private and public endpoints. The public endpoint is restricted to the required `eks_api_allowed_cidrs` input; set this to trusted administrator IP addresses only, never `0.0.0.0/0`. The Kubernetes version is also required input, so a deployment explicitly selects an EKS version AWS supports at that time.
 
 ### Stateful Workloads
 
@@ -153,7 +160,7 @@ Untagged images expire after seven days and each repository retains its 20 most 
 - The ALB can reach EKS only on the API gateway port (`3000`); EKS allows that port only from the ALB security group.
 - EKS nodes accept unrestricted traffic only from other EKS nodes; Kubernetes NetworkPolicies will further restrict pod-to-pod traffic.
 - Kubernetes Secrets will not be committed. AWS Secrets Manager integration is planned for the deployed environment.
-- IAM roles for service accounts will give Kubernetes controllers narrowly scoped AWS access.
+- Node IAM roles have only the baseline EKS, CNI, and ECR-pull policies; IAM roles for service accounts will give Kubernetes controllers narrowly scoped AWS access.
 - Network policies will restrict pod-to-pod traffic to required application paths.
 
 ## Operations Plan
@@ -172,7 +179,6 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 
 ## Roadmap
 
-1. Create the EKS cluster and managed node group.
-2. Adapt the supplied Kubernetes manifests for AWS ingress, storage, secrets, and image locations.
-3. Configure TLS, Cognito, logging, monitoring, and autoscaling.
-4. Perform load, recovery, security, and cost validation on a real AWS account.
+1. Adapt the supplied Kubernetes manifests for AWS ingress, storage, secrets, and image locations.
+2. Configure TLS, Cognito, logging, monitoring, and autoscaling.
+3. Perform load, recovery, security, and cost validation on a real AWS account.

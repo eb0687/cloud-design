@@ -27,3 +27,13 @@ output "application_ecr_repository_urls" {
   description = "Repository URLs used to publish the application container images."
   value       = { for name, repository in aws_ecr_repository.application : name => repository.repository_url }
 }
+
+output "eks_cluster_name" {
+  description = "Name used by AWS CLI and kubectl to access the EKS cluster."
+  value       = aws_eks_cluster.this.name
+}
+
+output "eks_cluster_endpoint" {
+  description = "Kubernetes API endpoint for the EKS cluster."
+  value       = aws_eks_cluster.this.endpoint
+}
