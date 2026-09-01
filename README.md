@@ -91,6 +91,8 @@ terraform/             AWS infrastructure configuration
   outputs.tf           Network IDs for later infrastructure components
 kubernetes/
   base/                Portable orchestrator workload manifests
+scripts/
+  mirror-images.sh     Mirrors the three provided application images into ECR
 ```
 
 The reference application is currently cloned separately at `/home/eb/scripts/reboot/devops/orchestrator-cd`. Its Kubernetes manifests are the source model for the future EKS deployment.
@@ -185,6 +187,14 @@ Terraform manages the `api-gateway` Kubernetes Ingress. The AWS Load Balancer Co
 ECR repositories are defined for the three application images: `api-gateway-app`, `inventory-app`, and `billing-app`. Each repository is private, encrypted at rest, scanned on push, and configured with immutable tags. The deployment workflow will build an image, tag it with an immutable release version or commit SHA, push it to ECR, and update the Kubernetes manifest to use that exact image reference.
 
 Untagged images expire after seven days and each repository retains its 20 most recent images. This limits registry storage costs while retaining a practical rollback window. PostgreSQL and RabbitMQ are stateful dependencies; their image sourcing will be documented when their EKS deployment is adapted.
+
+The provided application images can be mirrored into the Terraform-created ECR repositories with a shared immutable release tag:
+
+```sh
+./scripts/mirror-images.sh release-001
+```
+
+The script requires Docker, AWS CLI credentials, `jq`, and Terraform state from an applied ECR configuration. It pulls the three `ghcr.io/01-edu` application images, tags each with the supplied release tag, pushes them to ECR, and prints the source and ECR digests. It does not build images, push stateful dependency images, or alter the Kubernetes deployment.
 
 ### Security
 
