@@ -6,21 +6,21 @@ Infrastructure-as-code design for deploying the [01-edu orchestrator](https://gi
 
 The Terraform root configuration is complete and validates locally. AWS resources have not yet been provisioned because this project is being developed without an AWS account.
 
-| Area | Status |
-| --- | --- |
-| Local Kubernetes application | Assumed working from the supplied orchestrator project |
-| Terraform provider and inputs | Complete |
-| VPC and subnet routing | Defined; not provisioned |
-| Load balancer and EKS security groups | Defined; not provisioned |
-| ECR repositories | Defined; not provisioned |
-| EKS control plane and managed node group | Defined; not provisioned |
-| Kubernetes base workload manifests | Defined; not deployed |
-| EBS CSI driver and retained gp3 StorageClass | Defined; not provisioned |
-| AWS Load Balancer Controller | Defined; not provisioned |
-| ACM certificate and Route 53 DNS validation | Defined; not provisioned |
-| HTTPS API Ingress and Route 53 alias | Defined; not provisioned |
-| Kubernetes deployment to AWS | Planned |
-| Monitoring, logging, autoscaling, and Cognito | Planned |
+| Area                                          | Status                                                 |
+| --------------------------------------------- | ------------------------------------------------------ |
+| Local Kubernetes application                  | Assumed working from the supplied orchestrator project |
+| Terraform provider and inputs                 | Complete                                               |
+| VPC and subnet routing                        | Defined; not provisioned                               |
+| Load balancer and EKS security groups         | Defined; not provisioned                               |
+| ECR repositories                              | Defined; not provisioned                               |
+| EKS control plane and managed node group      | Defined; not provisioned                               |
+| Kubernetes base workload manifests            | Defined; not deployed                                  |
+| EBS CSI driver and retained gp3 StorageClass  | Defined; not provisioned                               |
+| AWS Load Balancer Controller                  | Defined; not provisioned                               |
+| ACM certificate and Route 53 DNS validation   | Defined; not provisioned                               |
+| HTTPS API Ingress and Route 53 alias          | Defined; not provisioned                               |
+| Kubernetes deployment to AWS                  | Planned                                                |
+| Monitoring, logging, autoscaling, and Cognito | Planned                                                |
 
 ## Architecture
 
@@ -60,14 +60,14 @@ Only the Application Load Balancer accepts internet traffic. Kubernetes Services
 
 ## Application Components
 
-| Component | Port | Responsibility |
-| --- | --- | --- |
+| Component         | Port | Responsibility                                                                 |
+| ----------------- | ---- | ------------------------------------------------------------------------------ |
 | `api-gateway-app` | 3000 | Public entry point; forwards inventory requests and publishes billing messages |
-| `inventory-app` | 8080 | Inventory API; connects to `inventory-db` |
-| `billing-app` | 8080 | Consumes billing messages; connects to `billing-db` |
-| `inventory-db` | 5432 | PostgreSQL data store for inventory |
-| `billing-db` | 5432 | PostgreSQL data store for billing |
-| `billing-queue` | 5672 | RabbitMQ message broker for billing work |
+| `inventory-app`   | 8080 | Inventory API; connects to `inventory-db`                                      |
+| `billing-app`     | 8080 | Consumes billing messages; connects to `billing-db`                            |
+| `inventory-db`    | 5432 | PostgreSQL data store for inventory                                            |
+| `billing-db`      | 5432 | PostgreSQL data store for billing                                              |
+| `billing-queue`   | 5672 | RabbitMQ message broker for billing work                                       |
 
 The supplied manifests already define Horizontal Pod Autoscalers for `api-gateway-app` and `inventory-app`, with one to three replicas at a 60% CPU target. EKS metrics support will be configured before these autoscalers are used in AWS.
 
@@ -128,7 +128,13 @@ terraform validate
 kubectl kustomize ../kubernetes/base
 ```
 
-The current configuration needs no AWS credentials because it defines no AWS resources. Later, use an uncommitted `terraform.tfvars` file to select a region, environment, and optional AWS CLI profile:
+The current configuration needs no AWS credentials because it defines no AWS resources. For a real deployment, create the ignored non-secret input file:
+
+```sh
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+```
+
+It selects a region, environment, EKS version, trusted API CIDR, and Route 53 zone:
 
 ```hcl
 aws_region  = "eu-west-3"
@@ -140,6 +146,8 @@ route53_zone_name     = "example.com"
 api_subdomain         = "api"
 ```
 
+Replace `203.0.113.10/32` with your own public IP followed by `/32`.
+
 `terraform/*.tfvars`, state files, and Terraform's plugin directory are excluded from Git. The provider lock file is committed so collaborators use the same provider version.
 
 Create the ignored secret input file before a real deployment:
@@ -149,6 +157,18 @@ cp terraform/secrets.tfvars.example terraform/secrets.tfvars
 ```
 
 Replace every `replace-me` value, then supply it only through `-var-file=secrets.tfvars` when running Terraform.
+
+## Deployment Order
+
+This sequence describes a real AWS deployment. It has not been run in this project.
+
+- Configure AWS CLI, Docker, Terraform, `kubectl`, `terraform.tfvars`, and ignored `secrets.tfvars`.
+- Review `terraform plan -var-file=secrets.tfvars`.
+- Then run `terraform apply -var-file=secrets.tfvars`.
+- Optionally mirror application images to ECR with `./scripts/mirror-images.sh release-001`.
+- Deploy the supplied workloads with `kubectl apply -k kubernetes/base`.
+- Verify pods, PVCs, ALB targets, logs, DNS, and `https://api.<domain>`.
+- Delete temporary infrastructure with `terraform destroy -var-file=secrets.tfvars` and manually remove retained EBS volumes when no longer needed.
 
 ## Design Decisions
 
