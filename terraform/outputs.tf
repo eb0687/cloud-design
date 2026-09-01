@@ -22,3 +22,8 @@ output "eks_nodes_security_group_id" {
   description = "Security group ID for the future EKS managed node group."
   value       = aws_security_group.eks_nodes.id
 }
+
+output "application_ecr_repository_urls" {
+  description = "Repository URLs used to publish the application container images."
+  value       = { for name, repository in aws_ecr_repository.application : name => repository.repository_url }
+}

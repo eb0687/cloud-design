@@ -12,7 +12,8 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | Terraform provider and inputs | Complete |
 | VPC and subnet routing | Defined; not provisioned |
 | Load balancer and EKS security groups | Defined; not provisioned |
-| EKS and ECR | Planned |
+| ECR repositories | Defined; not provisioned |
+| EKS | Planned |
 | Kubernetes deployment to AWS | Planned |
 | Monitoring, logging, autoscaling, and Cognito | Planned |
 
@@ -76,6 +77,7 @@ terraform/             AWS infrastructure configuration
   locals.tf            Naming convention and shared tags
   network.tf           VPC, subnets, internet gateway, NAT gateway, and routes
   security.tf          Security groups and ingress/egress rules
+  ecr.tf               Private application image repositories and retention rules
   outputs.tf           Network IDs for later infrastructure components
 ```
 
@@ -137,6 +139,12 @@ The VPC spans `eu-west-3a` and `eu-west-3b`, with a `/16` VPC CIDR. Public load-
 
 The public route table sends internet-bound traffic to an Internet Gateway. Both private subnets instead use one NAT gateway in the first public subnet, allowing private workloads to pull images and receive updates without accepting unsolicited inbound internet traffic. A single NAT gateway is an intentional development cost trade-off and a single-AZ failure point. A production environment should use a NAT gateway per Availability Zone or use VPC endpoints for supported AWS services.
 
+### Container Images
+
+ECR repositories are defined for the three application images: `api-gateway-app`, `inventory-app`, and `billing-app`. Each repository is private, encrypted at rest, scanned on push, and configured with immutable tags. The deployment workflow will build an image, tag it with an immutable release version or commit SHA, push it to ECR, and update the Kubernetes manifest to use that exact image reference.
+
+Untagged images expire after seven days and each repository retains its 20 most recent images. This limits registry storage costs while retaining a practical rollback window. PostgreSQL and RabbitMQ are stateful dependencies; their image sourcing will be documented when their EKS deployment is adapted.
+
 ### Security
 
 - TLS will terminate at the ALB using AWS Certificate Manager.
@@ -164,7 +172,7 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 
 ## Roadmap
 
-1. Create security groups, ECR repositories, and the EKS cluster.
+1. Create the EKS cluster and managed node group.
 2. Adapt the supplied Kubernetes manifests for AWS ingress, storage, secrets, and image locations.
 3. Configure TLS, Cognito, logging, monitoring, and autoscaling.
 4. Perform load, recovery, security, and cost validation on a real AWS account.
