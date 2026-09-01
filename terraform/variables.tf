@@ -169,3 +169,27 @@ variable "api_subdomain" {
     error_message = "api_subdomain must be a lowercase DNS label."
   }
 }
+
+variable "orchestrator_secret_values" {
+  description = "Sensitive credentials and database names consumed by the orchestrator workloads."
+  type        = map(string)
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition = alltrue([
+      for key in [
+        "INVENTORY_DB_USER",
+        "INVENTORY_DB_PASSWORD",
+        "INVENTORY_DB_NAME",
+        "BILLING_DB_USER",
+        "BILLING_DB_PASSWORD",
+        "BILLING_DB_NAME",
+        "RABBITMQ_USER",
+        "RABBITMQ_PASSWORD",
+        "RABBITMQ_QUEUE",
+      ] : contains(keys(var.orchestrator_secret_values), key)
+    ])
+    error_message = "orchestrator_secret_values must contain every required database and RabbitMQ key."
+  }
+}

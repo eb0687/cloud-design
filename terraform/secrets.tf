@@ -1,0 +1,10 @@
+resource "kubernetes_secret_v1" "orchestrator" {
+  metadata {
+    name = "orchestrator-secrets"
+  }
+
+  data = var.orchestrator_secret_values
+  type = "Opaque"
+
+  depends_on = [aws_eks_node_group.default]
+}

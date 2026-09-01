@@ -86,6 +86,8 @@ terraform/             AWS infrastructure configuration
   eks.tf               EKS control plane, managed node group, IAM roles, and node template
   certificate.tf       ACM certificate and Route 53 DNS validation record
   load-balancer-controller.tf  ALB controller IAM role and Helm release
+  secrets.tf           Kubernetes application Secret
+  secrets.tfvars.example  Placeholder-only secret input template
   outputs.tf           Network IDs for later infrastructure components
 kubernetes/
   base/                Portable orchestrator workload manifests
@@ -138,6 +140,14 @@ api_subdomain         = "api"
 
 `terraform/*.tfvars`, state files, and Terraform's plugin directory are excluded from Git. The provider lock file is committed so collaborators use the same provider version.
 
+Create the ignored secret input file before a real deployment:
+
+```sh
+cp terraform/secrets.tfvars.example terraform/secrets.tfvars
+```
+
+Replace every `replace-me` value, then supply it only through `-var-file=secrets.tfvars` when running Terraform.
+
 ## Design Decisions
 
 ### EKS
@@ -186,6 +196,7 @@ Untagged images expire after seven days and each repository retains its 20 most 
 - Kubernetes Secrets will not be committed. AWS Secrets Manager integration is planned for the deployed environment.
 - Node IAM roles have only the baseline EKS, CNI, and ECR-pull policies; IAM roles for service accounts will give Kubernetes controllers narrowly scoped AWS access.
 - Network policies will restrict pod-to-pod traffic to required application paths.
+- Terraform creates the `orchestrator-secrets` Kubernetes Secret from ignored sensitive input. The plaintext remains in Terraform state, so production should use a secured remote state backend and later migrate to AWS Secrets Manager synchronization.
 
 ## Operations Plan
 
@@ -203,6 +214,7 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 
 ## Roadmap
 
-1. Create Terraform-managed Kubernetes secrets and ECR image configuration.
+1. Configure versioned ECR images for application deployment.
 2. Configure Cognito, logging, monitoring, and autoscaling.
-3. Perform load, recovery, security, and cost validation on a real AWS account.
+3. Migrate application secrets to AWS Secrets Manager synchronization.
+4. Perform load, recovery, security, and cost validation on a real AWS account.
