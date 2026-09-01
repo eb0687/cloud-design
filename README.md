@@ -15,7 +15,7 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | ECR repositories | Defined; not provisioned |
 | EKS control plane and managed node group | Defined; not provisioned |
 | Kubernetes base workload manifests | Defined; not deployed |
-| EBS CSI driver and AWS storage overlay | Defined; not provisioned |
+| EBS CSI driver and retained gp3 StorageClass | Defined; not provisioned |
 | AWS Load Balancer Controller | Defined; not provisioned |
 | ACM certificate and Route 53 DNS validation | Defined; not provisioned |
 | Kubernetes deployment to AWS | Planned |
@@ -88,12 +88,11 @@ terraform/             AWS infrastructure configuration
   outputs.tf           Network IDs for later infrastructure components
 kubernetes/
   base/                Portable orchestrator workload manifests
-  overlays/aws/        EKS storage configuration and future AWS deployment changes
 ```
 
 The reference application is currently cloned separately at `/home/eb/scripts/reboot/devops/orchestrator-cd`. Its Kubernetes manifests are the source model for the future EKS deployment.
 
-The copied `kubernetes/base/` manifests preserve the six workload components and their private service DNS names. All Services, including `api-gateway-app`, are `ClusterIP`: an AWS-specific overlay will later define an Ingress, which is the only public entry point. The base intentionally contains no credentials, AWS annotations, ECR image references, or storage-class choice. It references an `orchestrator-secrets` Secret that a later overlay will create from an ignored local file or synchronize from AWS Secrets Manager.
+The copied `kubernetes/base/` manifests preserve the six workload components and their private service DNS names. All Services, including `api-gateway-app`, are `ClusterIP`: a Terraform-managed Ingress will later define the only public entry point. The base intentionally contains no credentials, AWS annotations, ECR image references, or storage-class choice. It references an `orchestrator-secrets` Secret that Terraform will later manage from an ignored local input or synchronize from AWS Secrets Manager.
 
 ## Prerequisites
 
@@ -122,7 +121,6 @@ terraform fmt -check -recursive
 terraform init -backend=false
 terraform validate
 kubectl kustomize ../kubernetes/base
-kubectl kustomize ../kubernetes/overlays/aws
 ```
 
 The current configuration needs no AWS credentials because it defines no AWS resources. Later, use an uncommitted `terraform.tfvars` file to select a region, environment, and optional AWS CLI profile:
@@ -153,7 +151,7 @@ The Kubernetes API has both private and public endpoints. The public endpoint is
 
 For the initial implementation, both PostgreSQL databases and RabbitMQ remain Kubernetes StatefulSets in EKS with EBS-backed persistent volumes. This directly reflects the project requirements and limits the first AWS implementation to one orchestration model.
 
-The AWS overlay assigns their PVCs to a `gp3` EBS StorageClass. The EKS EBS CSI add-on dynamically creates an encrypted EBS volume when a pod is scheduled. Its `WaitForFirstConsumer` binding mode creates the volume in the pod's Availability Zone, preventing cross-AZ attachment failures. The CSI controller uses an IAM role bound only to its Kubernetes service account through EKS OIDC.
+Terraform creates a default `gp3` EBS StorageClass, so the base PVCs select it without AWS-specific manifest patches. The EKS EBS CSI add-on dynamically creates an encrypted EBS volume when a pod is scheduled. Its `WaitForFirstConsumer` binding mode creates the volume in the pod's Availability Zone, preventing cross-AZ attachment failures. The CSI controller uses an IAM role bound only to its Kubernetes service account through EKS OIDC.
 
 The `gp3` StorageClass uses a `Retain` reclaim policy: deleting a PVC does not delete its dynamically provisioned EBS volume. This preserves data for inspection or recovery, but retained volumes continue to incur cost and must be deleted manually when no longer needed.
 
@@ -202,7 +200,7 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 
 ## Roadmap
 
-1. Create an AWS Ingress overlay for the API gateway.
-2. Create AWS Kubernetes overlays for secrets and ECR image locations.
+1. Create a Terraform-managed Ingress for the API gateway.
+2. Create Terraform-managed Kubernetes secrets and ECR image configuration.
 3. Configure Cognito, logging, monitoring, and autoscaling.
 4. Perform load, recovery, security, and cost validation on a real AWS account.

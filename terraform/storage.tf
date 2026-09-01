@@ -55,3 +55,27 @@ resource "aws_eks_addon" "ebs_csi" {
 
   depends_on = [aws_iam_role_policy_attachment.ebs_csi]
 }
+
+resource "kubernetes_storage_class_v1" "gp3" {
+  metadata {
+    name = "gp3"
+    annotations = {
+      "storageclass.kubernetes.io/is-default-class" = "true"
+    }
+  }
+
+  storage_provisioner    = "ebs.csi.aws.com"
+  allow_volume_expansion = true
+  reclaim_policy         = "Retain"
+  volume_binding_mode    = "WaitForFirstConsumer"
+
+  parameters = {
+    "csi.storage.k8s.io/fstype" = "ext4"
+    type                        = "gp3"
+  }
+
+  depends_on = [
+    aws_eks_addon.ebs_csi,
+    aws_eks_node_group.default,
+  ]
+}
