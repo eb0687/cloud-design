@@ -2,7 +2,13 @@
 
 set -euo pipefail
 
-KUBECONFIG_PATH="${KUBECONFIG:-.kube/config}"
+if [ -n "${KUBECONFIG:-}" ]; then
+    KUBECONFIG_PATH="$KUBECONFIG"
+elif [ -f .kube/config ]; then
+    KUBECONFIG_PATH=.kube/config
+else
+    KUBECONFIG_PATH="$HOME/.kube/config"
+fi
 SECRET_NAME="orchestrator-credentials"
 
 if [ -f .env.local ]; then

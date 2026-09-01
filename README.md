@@ -1,9 +1,8 @@
 # Cloud-Design
 
 Cloud-Design extends the tested Vagrant/K3s microservices deployment from the
-previous `orchestrator` project. The local deployment is the executable part of
-this repository. The AWS design is represented as Terraform and documentation,
-but is not applied because this project intentionally has no AWS account.
+previous `orchestrator` project. It can run locally on K3s or on the minimal
+AWS EKS foundation defined in `terraform/`.
 
 ## Requirements
 
@@ -71,17 +70,17 @@ Inspect the deployment:
 KUBECONFIG=.kube/config kubectl get svc,pvc,hpa
 ```
 
-The gateway is available at `http://192.168.60.10:30000` while the cluster is
+The gateway is available at `http://192.168.60.10:3000` while the cluster is
 running. Example requests:
 
 ```sh
-curl -X POST http://192.168.60.10:30000/api/movies/ \
+curl -X POST http://192.168.60.10:3000/api/movies/ \
   -H 'Content-Type: application/json' \
   -d '{"title":"A new movie","description":"Very short description"}'
 
-curl http://192.168.60.10:30000/api/movies/
+curl http://192.168.60.10:3000/api/movies/
 
-curl -X POST http://192.168.60.10:30000/api/billing/ \
+curl -X POST http://192.168.60.10:3000/api/billing/ \
   -H 'Content-Type: application/json' \
   -d '{"user_id":20,"number_of_items":2,"total_amount":25}'
 ```
@@ -147,21 +146,48 @@ KUBECONFIG=.kube/config kubectl logs <pod-name>
 This removes the local VMs and generated K3s state. It does not affect the
 separate source repository at `/home/eb/scripts/reboot/devops/orchestrator`.
 
-## Proposed AWS Architecture
+## AWS EKS Deployment
 
-`terraform/` contains a design-only AWS implementation. The intended mapping is
-EKS or ECS for workloads, private subnets for databases and RabbitMQ, an
-internet-facing load balancer for the gateway, IAM least-privilege roles,
-encrypted storage, Cognito for public authentication, and CloudWatch for AWS
-logs and metrics.
+`terraform/` provisions an EKS control plane, a minimal managed node group in
+public subnets, EBS CSI storage support, and ECR repositories. Terraform does
+not deploy application resources. The application continues to use its
+Kubernetes manifests and self-hosted PostgreSQL and RabbitMQ workloads.
 
-Terraform may be formatted and statically validated, but must not be applied:
+Provision the cluster and configure `kubectl`:
 
 ```sh
-terraform -chdir=terraform fmt -check
-terraform -chdir=terraform init -backend=false
-terraform -chdir=terraform validate
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+terraform -chdir=terraform init
+terraform -chdir=terraform apply
+aws eks update-kubeconfig --region eu-west-3 --name cloud-design
 ```
+
+Build and push all application images with an immutable release tag. AWS CLI
+credentials and a default region must already be configured:
+
+```sh
+./Scripts/push-ecr-images.sh v1
+```
+
+The script logs Docker into ECR and prints the six ECR image references. Update
+the `image:` values in `Manifests/` with those references, then create the
+credentials Secret and deploy:
+
+```sh
+KUBECONFIG="$HOME/.kube/config" ./Scripts/create-local-secret.sh
+kubectl apply -f Manifests
+kubectl get service api-gateway-app --watch
+```
+
+The EKS gateway uses a `LoadBalancer` Service, so AWS publishes its hostname in
+the service's `EXTERNAL-IP` column. The public-node design avoids NAT gateway
+costs and is suitable only for a minimal development environment.
+
+Terraform installs EBS storage, Metrics Server, and Cluster Autoscaler. Metrics
+Server enables the existing CPU-based HPAs. Cluster Autoscaler detects
+unschedulable pods created by those HPAs and adjusts the managed node group
+between one and three nodes. Terraform needs AWS CLI access because its Helm
+and Kubernetes providers authenticate with `aws eks get-token`.
 
 ## Local Monitoring
 
@@ -182,8 +208,8 @@ instructions.
   manifests use K3s's default local-path provisioner.
 - Credentials are generated into a Kubernetes Secret from ignored local input;
   they are not committed to this repository.
-- The local NodePort is a development substitute for an AWS load balancer, not
-  an AWS security boundary.
-- Production HTTPS, managed authentication, VPC isolation, encryption,
-  vulnerability scanning, and AWS observability remain part of the proposed
-  cloud design and are not claimed as locally implemented AWS features.
+- K3s exposes the LoadBalancer Service on the gateway's service port for local
+  development; EKS creates an AWS load balancer for the same Service.
+- The EKS setup is intentionally minimal. It does not include private worker
+  subnets, NAT gateways, managed databases, managed RabbitMQ, HTTPS,
+  authentication, or centralized AWS observability.

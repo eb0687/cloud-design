@@ -1,44 +1,30 @@
-output "vpc_id" {
-  description = "Proposed application VPC."
-  value       = aws_vpc.main.id
+output "cluster_name" {
+  description = "EKS cluster name for aws eks update-kubeconfig."
+  value       = aws_eks_cluster.main.name
+}
+
+output "cluster_endpoint" {
+  description = "Public EKS Kubernetes API endpoint."
+  value       = aws_eks_cluster.main.endpoint
+}
+
+output "cluster_certificate_authority_data" {
+  description = "Base64-encoded EKS Kubernetes API certificate authority data."
+  value       = aws_eks_cluster.main.certificate_authority[0].data
+  sensitive   = true
+}
+
+output "node_group_name" {
+  description = "Minimal managed EKS node group name."
+  value       = aws_eks_node_group.main.node_group_name
 }
 
 output "public_subnet_ids" {
-  description = "Proposed public subnet IDs for the load balancer."
+  description = "Public subnet IDs for EKS worker nodes and Kubernetes load balancers."
   value       = aws_subnet.public[*].id
-}
-
-output "private_subnet_ids" {
-  description = "Proposed private subnet IDs for workloads and data services."
-  value       = aws_subnet.private[*].id
 }
 
 output "ecr_repository_urls" {
   description = "Immutable ECR repositories for the six application images."
   value       = { for name, repository in aws_ecr_repository.service : name => repository.repository_url }
-}
-
-output "inventory_database_endpoint" {
-  description = "Private inventory database endpoint."
-  value       = aws_db_instance.inventory.address
-}
-
-output "billing_database_endpoint" {
-  description = "Private billing database endpoint."
-  value       = aws_db_instance.billing.address
-}
-
-output "rabbitmq_endpoint" {
-  description = "Private Amazon MQ RabbitMQ endpoint."
-  value       = aws_mq_broker.rabbitmq.instances[0].endpoints
-}
-
-output "cognito_user_pool_id" {
-  description = "Cognito user pool for gateway authentication."
-  value       = aws_cognito_user_pool.main.id
-}
-
-output "gateway_load_balancer_dns" {
-  description = "Public HTTPS load balancer DNS name for the API gateway."
-  value       = aws_lb.gateway.dns_name
 }

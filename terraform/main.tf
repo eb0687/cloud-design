@@ -2,30 +2,33 @@ locals {
   name = var.project_name
 }
 
+data "tls_certificate" "eks" {
+  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
+}
+
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = { Name = local.name }
+  tags = {
+    Name                                  = local.name
+    "kubernetes.io/cluster/${local.name}" = "shared"
+  }
 }
 
 resource "aws_subnet" "public" {
-  count             = length(var.availability_zones)
-  vpc_id            = aws_vpc.main.id
-  availability_zone = var.availability_zones[count.index]
-  cidr_block        = cidrsubnet(var.vpc_cidr, 4, count.index)
+  count                   = length(var.availability_zones)
+  vpc_id                  = aws_vpc.main.id
+  availability_zone       = var.availability_zones[count.index]
+  cidr_block              = cidrsubnet(var.vpc_cidr, 4, count.index)
+  map_public_ip_on_launch = true
 
-  tags = { Name = "${local.name}-public-${count.index + 1}" }
-}
-
-resource "aws_subnet" "private" {
-  count             = length(var.availability_zones)
-  vpc_id            = aws_vpc.main.id
-  availability_zone = var.availability_zones[count.index]
-  cidr_block        = cidrsubnet(var.vpc_cidr, 4, count.index + 8)
-
-  tags = { Name = "${local.name}-private-${count.index + 1}" }
+  tags = {
+    Name                                  = "${local.name}-public-${count.index + 1}"
+    "kubernetes.io/cluster/${local.name}" = "shared"
+    "kubernetes.io/role/elb"              = "1"
+  }
 }
 
 resource "aws_internet_gateway" "main" {
@@ -51,92 +54,199 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.main.id
+resource "aws_iam_role" "eks_cluster" {
+  name = "${local.name}-eks-cluster"
 
-  tags = { Name = "${local.name}-private" }
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "eks.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
 }
 
-resource "aws_route_table_association" "private" {
-  count          = length(aws_subnet.private)
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
+resource "aws_iam_role_policy_attachment" "eks_cluster" {
+  role       = aws_iam_role.eks_cluster.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-resource "aws_security_group" "gateway" {
-  name        = "${local.name}-gateway"
-  description = "Public HTTPS entry point for the API gateway"
-  vpc_id      = aws_vpc.main.id
+resource "aws_iam_role" "eks_nodes" {
+  name = "${local.name}-eks-nodes"
 
-  ingress {
-    description = "HTTPS from the internet"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "eks_nodes" {
+  for_each = toset([
+    "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+    "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly",
+    "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
+  ])
+
+  role       = aws_iam_role.eks_nodes.name
+  policy_arn = each.value
+}
+
+resource "aws_eks_cluster" "main" {
+  name     = local.name
+  role_arn = aws_iam_role.eks_cluster.arn
+  version  = var.kubernetes_version
+
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  vpc_config {
+    endpoint_private_access = false
+    endpoint_public_access  = true
+    subnet_ids              = aws_subnet.public[*].id
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.eks_cluster]
+}
+
+resource "aws_iam_openid_connect_provider" "eks" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_role" "ebs_csi" {
+  name = "${local.name}-ebs-csi"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = aws_iam_openid_connect_provider.eks.arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ebs_csi" {
+  role       = aws_iam_role.ebs_csi.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name             = aws_eks_cluster.main.name
+  addon_name               = "aws-ebs-csi-driver"
+  service_account_role_arn = aws_iam_role.ebs_csi.arn
+
+  depends_on = [aws_iam_role_policy_attachment.ebs_csi]
+}
+
+resource "aws_eks_node_group" "main" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "${local.name}-nodes"
+  node_role_arn   = aws_iam_role.eks_nodes.arn
+  subnet_ids      = aws_subnet.public[*].id
+  instance_types  = [var.node_instance_type]
+
+  scaling_config {
+    desired_size = 1
+    max_size     = 3
+    min_size     = 1
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.eks_nodes]
+}
+
+resource "aws_autoscaling_group_tag" "cluster_autoscaler" {
+  for_each = {
+    "k8s.io/cluster-autoscaler/enabled"       = "true"
+    "k8s.io/cluster-autoscaler/${local.name}" = "owned"
+  }
+
+  autoscaling_group_name = aws_eks_node_group.main.resources[0].autoscaling_groups[0].name
+
+  tag {
+    key                 = each.key
+    value               = each.value
+    propagate_at_launch = false
   }
 }
 
-resource "aws_security_group" "workloads" {
-  name        = "${local.name}-workloads"
-  description = "Private application workload traffic"
-  vpc_id      = aws_vpc.main.id
+resource "aws_iam_role" "cluster_autoscaler" {
+  name = "${local.name}-cluster-autoscaler"
 
-  ingress {
-    description     = "HTTP from the public load balancer to the gateway"
-    from_port       = 3000
-    to_port         = 3000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.gateway.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = aws_iam_openid_connect_provider.eks.arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:kube-system:cluster-autoscaler"
+        }
+      }
+    }]
+  })
 }
 
-resource "aws_security_group" "private_services" {
-  name        = "${local.name}-private-services"
-  description = "Private service traffic only"
-  vpc_id      = aws_vpc.main.id
+resource "aws_iam_role_policy" "cluster_autoscaler" {
+  name = "${local.name}-cluster-autoscaler"
+  role = aws_iam_role.cluster_autoscaler.id
 
-  ingress {
-    description     = "PostgreSQL from application workloads"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.workloads.id]
-  }
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "autoscaling:DescribeAutoScalingGroups",
+          "autoscaling:DescribeAutoScalingInstances",
+          "autoscaling:DescribeLaunchConfigurations",
+          "autoscaling:DescribeScalingActivities",
+          "ec2:DescribeImages",
+          "ec2:DescribeInstanceTypes",
+          "ec2:DescribeLaunchTemplateVersions",
+          "ec2:DescribeAvailabilityZones",
+          "eks:DescribeNodegroup",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "autoscaling:SetDesiredCapacity",
+          "autoscaling:TerminateInstanceInAutoScalingGroup",
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:ResourceTag/k8s.io/cluster-autoscaler/enabled"       = "true"
+            "aws:ResourceTag/k8s.io/cluster-autoscaler/${local.name}" = "owned"
+          }
+        }
+      },
+    ]
+  })
 
-  ingress {
-    description     = "RabbitMQ from application workloads"
-    from_port       = 5672
-    to_port         = 5672
-    protocol        = "tcp"
-    security_groups = [aws_security_group.workloads.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_cloudwatch_log_group" "application" {
-  name              = "/${local.name}/application"
-  retention_in_days = 7
+  depends_on = [aws_autoscaling_group_tag.cluster_autoscaler]
 }
 
 resource "aws_ecr_repository" "service" {
@@ -155,126 +265,4 @@ resource "aws_ecr_repository" "service" {
   image_scanning_configuration {
     scan_on_push = true
   }
-}
-
-resource "aws_lb" "gateway" {
-  name               = "${local.name}-gateway"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.gateway.id]
-  subnets            = aws_subnet.public[*].id
-}
-
-resource "aws_lb_target_group" "gateway" {
-  name        = "${local.name}-gateway"
-  port        = 3000
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = aws_vpc.main.id
-
-  health_check {
-    path = "/"
-  }
-}
-
-resource "aws_lb_listener" "https" {
-  load_balancer_arn = aws_lb.gateway.arn
-  port              = 443
-  protocol          = "HTTPS"
-  certificate_arn   = var.certificate_arn
-  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.gateway.arn
-  }
-}
-
-resource "aws_ecs_cluster" "main" {
-  name = local.name
-}
-
-resource "aws_iam_role" "ecs_task_execution" {
-  name = "${local.name}-ecs-task-execution"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ecs-tasks.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
-  role       = aws_iam_role.ecs_task_execution.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-resource "aws_db_subnet_group" "main" {
-  name       = "${local.name}-databases"
-  subnet_ids = aws_subnet.private[*].id
-
-  tags = { Name = "${local.name}-databases" }
-}
-
-resource "aws_db_instance" "inventory" {
-  identifier             = "${local.name}-inventory-db"
-  engine                 = "postgres"
-  engine_version         = "16"
-  instance_class         = "db.t4g.micro"
-  allocated_storage      = 20
-  db_name                = "movies"
-  username               = var.database_username
-  password               = var.database_password
-  db_subnet_group_name   = aws_db_subnet_group.main.name
-  vpc_security_group_ids = [aws_security_group.private_services.id]
-  publicly_accessible    = false
-  storage_encrypted      = true
-  skip_final_snapshot    = true
-}
-
-resource "aws_db_instance" "billing" {
-  identifier             = "${local.name}-billing-db"
-  engine                 = "postgres"
-  engine_version         = "16"
-  instance_class         = "db.t4g.micro"
-  allocated_storage      = 20
-  db_name                = "orders"
-  username               = var.database_username
-  password               = var.database_password
-  db_subnet_group_name   = aws_db_subnet_group.main.name
-  vpc_security_group_ids = [aws_security_group.private_services.id]
-  publicly_accessible    = false
-  storage_encrypted      = true
-  skip_final_snapshot    = true
-}
-
-resource "aws_mq_broker" "rabbitmq" {
-  broker_name                = "${local.name}-rabbitmq"
-  engine_type                = "RabbitMQ"
-  engine_version             = "3.13"
-  host_instance_type         = "mq.t3.micro"
-  publicly_accessible        = false
-  deployment_mode            = "SINGLE_INSTANCE"
-  auto_minor_version_upgrade = true
-  subnet_ids                 = [aws_subnet.private[0].id]
-  security_groups            = [aws_security_group.private_services.id]
-
-  user {
-    username = var.mq_username
-    password = var.mq_password
-  }
-}
-
-resource "aws_cognito_user_pool" "main" {
-  name = "${local.name}-users"
-}
-
-resource "aws_cognito_user_pool_client" "gateway" {
-  name         = "${local.name}-gateway"
-  user_pool_id = aws_cognito_user_pool.main.id
-
-  generate_secret = false
 }

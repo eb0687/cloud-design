@@ -10,14 +10,13 @@ metadata:
     prometheus.io/path: /metrics
     prometheus.io/port: "3000"
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: api-gateway-app
   ports:
     - name: http
       port: 3000
       targetPort: http
-      nodePort: 30000
 ---
 apiVersion: apps/v1
 kind: Deployment

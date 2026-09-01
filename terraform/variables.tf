@@ -1,11 +1,11 @@
 variable "aws_region" {
-  description = "AWS region for the proposed deployment."
+  description = "AWS region for the EKS deployment."
   type        = string
   default     = "eu-west-3"
 }
 
 variable "project_name" {
-  description = "Prefix applied to proposed AWS resource names."
+  description = "Prefix applied to AWS resource names and the EKS cluster name."
   type        = string
   default     = "cloud-design"
 
@@ -16,7 +16,7 @@ variable "project_name" {
 }
 
 variable "vpc_cidr" {
-  description = "CIDR range for the proposed private network."
+  description = "CIDR range for the EKS VPC."
   type        = string
   default     = "10.40.0.0/16"
 
@@ -27,41 +27,24 @@ variable "vpc_cidr" {
 }
 
 variable "availability_zones" {
-  description = "Two availability zones for the high-level design."
+  description = "Availability zones for the EKS control plane and public worker subnets."
   type        = list(string)
   default     = ["eu-west-3a", "eu-west-3b"]
 
   validation {
     condition     = length(var.availability_zones) >= 2
-    error_message = "At least two availability zones are required for the design."
+    error_message = "At least two availability zones are required by EKS."
   }
 }
 
-variable "database_username" {
-  description = "Admin username for the proposed private PostgreSQL instances. Supply via an uncommitted tfvars file."
+variable "kubernetes_version" {
+  description = "EKS Kubernetes version."
   type        = string
-  sensitive   = true
+  default     = "1.34"
 }
 
-variable "database_password" {
-  description = "Admin password for the proposed private PostgreSQL instances. Supply via an uncommitted tfvars file."
+variable "node_instance_type" {
+  description = "Instance type for the minimal managed EKS node group."
   type        = string
-  sensitive   = true
-}
-
-variable "mq_username" {
-  description = "Username for the proposed private RabbitMQ broker. Supply via an uncommitted tfvars file."
-  type        = string
-  sensitive   = true
-}
-
-variable "mq_password" {
-  description = "Password for the proposed private RabbitMQ broker. Supply via an uncommitted tfvars file."
-  type        = string
-  sensitive   = true
-}
-
-variable "certificate_arn" {
-  description = "ACM certificate ARN for the proposed HTTPS load balancer."
-  type        = string
+  default     = "t3.small"
 }
