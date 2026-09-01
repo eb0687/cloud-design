@@ -10,7 +10,7 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | --- | --- |
 | Local Kubernetes application | Assumed working from the supplied orchestrator project |
 | Terraform provider and inputs | Complete |
-| VPC and subnet routing | Planned |
+| VPC and subnet routing | Defined; not provisioned |
 | EKS and ECR | Planned |
 | Kubernetes deployment to AWS | Planned |
 | Monitoring, logging, autoscaling, and Cognito | Planned |
@@ -73,6 +73,8 @@ terraform/             AWS infrastructure configuration
   provider.tf          AWS provider and common resource tags
   variables.tf         Environment inputs and validation
   locals.tf            Naming convention and shared tags
+  network.tf           VPC, subnets, internet gateway, NAT gateway, and routes
+  outputs.tf           Network IDs for later infrastructure components
 ```
 
 The reference application is currently cloned separately at `/home/eb/scripts/reboot/devops/orchestrator-cd`. Its Kubernetes manifests are the source model for the future EKS deployment.
@@ -129,7 +131,9 @@ The documented production alternative is Amazon RDS for PostgreSQL and Amazon MQ
 
 ### Networking
 
-The VPC will span two Availability Zones. The load balancer belongs in public subnets; EKS nodes and application pods belong in private subnets. A NAT gateway will initially give private workloads outbound access for image pulls and updates. It is a recurring cost, so a later cost-optimised design can use VPC endpoints where appropriate.
+The VPC spans `eu-west-3a` and `eu-west-3b`, with a `/16` VPC CIDR. Public load-balancer subnets use `10.0.0.0/24` and `10.0.1.0/24`; private EKS subnets use `10.0.16.0/20` and `10.0.32.0/20`. These values are configurable Terraform inputs.
+
+The public route table sends internet-bound traffic to an Internet Gateway. Both private subnets instead use one NAT gateway in the first public subnet, allowing private workloads to pull images and receive updates without accepting unsolicited inbound internet traffic. A single NAT gateway is an intentional development cost trade-off and a single-AZ failure point. A production environment should use a NAT gateway per Availability Zone or use VPC endpoints for supported AWS services.
 
 ### Security
 
@@ -156,8 +160,7 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 
 ## Roadmap
 
-1. Create the VPC, two-AZ public/private subnets, routing, and security-group boundary.
-2. Create ECR repositories and the EKS cluster.
-3. Adapt the supplied Kubernetes manifests for AWS ingress, storage, secrets, and image locations.
-4. Configure TLS, Cognito, logging, monitoring, and autoscaling.
-5. Perform load, recovery, security, and cost validation on a real AWS account.
+1. Create security groups, ECR repositories, and the EKS cluster.
+2. Adapt the supplied Kubernetes manifests for AWS ingress, storage, secrets, and image locations.
+3. Configure TLS, Cognito, logging, monitoring, and autoscaling.
+4. Perform load, recovery, security, and cost validation on a real AWS account.
