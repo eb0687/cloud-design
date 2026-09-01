@@ -15,6 +15,7 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | ECR repositories | Defined; not provisioned |
 | EKS control plane and managed node group | Defined; not provisioned |
 | Kubernetes base workload manifests | Defined; not deployed |
+| EBS CSI driver and AWS storage overlay | Defined; not provisioned |
 | Kubernetes deployment to AWS | Planned |
 | Monitoring, logging, autoscaling, and Cognito | Planned |
 
@@ -83,6 +84,7 @@ terraform/             AWS infrastructure configuration
   outputs.tf           Network IDs for later infrastructure components
 kubernetes/
   base/                Portable orchestrator workload manifests
+  overlays/aws/        EKS storage configuration and future AWS deployment changes
 ```
 
 The reference application is currently cloned separately at `/home/eb/scripts/reboot/devops/orchestrator-cd`. Its Kubernetes manifests are the source model for the future EKS deployment.
@@ -116,6 +118,7 @@ terraform fmt -check -recursive
 terraform init -backend=false
 terraform validate
 kubectl kustomize ../kubernetes/base
+kubectl kustomize ../kubernetes/overlays/aws
 ```
 
 The current configuration needs no AWS credentials because it defines no AWS resources. Later, use an uncommitted `terraform.tfvars` file to select a region, environment, and optional AWS CLI profile:
@@ -143,6 +146,10 @@ The Kubernetes API has both private and public endpoints. The public endpoint is
 ### Stateful Workloads
 
 For the initial implementation, both PostgreSQL databases and RabbitMQ remain Kubernetes StatefulSets in EKS with EBS-backed persistent volumes. This directly reflects the project requirements and limits the first AWS implementation to one orchestration model.
+
+The AWS overlay assigns their PVCs to a `gp3` EBS StorageClass. The EKS EBS CSI add-on dynamically creates an encrypted EBS volume when a pod is scheduled. Its `WaitForFirstConsumer` binding mode creates the volume in the pod's Availability Zone, preventing cross-AZ attachment failures. The CSI controller uses an IAM role bound only to its Kubernetes service account through EKS OIDC.
+
+The `gp3` StorageClass uses a `Retain` reclaim policy: deleting a PVC does not delete its dynamically provisioned EBS volume. This preserves data for inspection or recovery, but retained volumes continue to incur cost and must be deleted manually when no longer needed.
 
 The documented production alternative is Amazon RDS for PostgreSQL and Amazon MQ for RabbitMQ. Managed services reduce operational work and can improve availability, backups, patching, and recovery, but require additional configuration and alter the supplied Kubernetes deployment.
 
@@ -185,7 +192,7 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 
 ## Roadmap
 
-1. Add the EKS storage and load-balancer controller prerequisites.
-2. Create AWS Kubernetes overlays for ingress, storage, secrets, and ECR image locations.
+1. Add the AWS Load Balancer Controller prerequisite.
+2. Create AWS Kubernetes overlays for ingress, secrets, and ECR image locations.
 3. Configure TLS, Cognito, logging, monitoring, and autoscaling.
 4. Perform load, recovery, security, and cost validation on a real AWS account.

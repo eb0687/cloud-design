@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: billing-queue
+spec:
+  volumeClaimTemplates:
+    - metadata:
+        name: billing-queue
+      spec:
+        storageClassName: gp3

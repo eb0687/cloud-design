@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - storage-class.yaml
+
+patches:
+  - path: inventory-db-storage.yaml
+    target:
+      kind: PersistentVolumeClaim
+      name: inventory-database
+  - path: billing-db-storage.yaml
+    target:
+      kind: PersistentVolumeClaim
+      name: billing-database
+  - path: billing-queue-storage.yaml
+    target:
+      kind: StatefulSet
+      name: billing-queue
