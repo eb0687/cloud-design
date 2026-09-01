@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-queue
+  labels:
+    app: billing-queue
+spec:
+  type: ClusterIP
+  ports:
+    - name: amqp
+      protocol: TCP
+      port: 5672
+      targetPort: 5672
+    - name: management
+      protocol: TCP
+      port: 15672
+      targetPort: 15672
+  selector:
+    app: billing-queue
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: billing-queue
+spec:
+  serviceName: billing-queue
+  replicas: 1
+  minReadySeconds: 10
+  selector:
+    matchLabels:
+      app: billing-queue
+  template:
+    metadata:
+      labels:
+        app: billing-queue
+    spec:
+      containers:
+        - name: billing-queue
+          image: ghcr.io/01-edu/content-rabbitmq:latest
+          env:
+            - name: RABBITMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-secrets
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orchestrator-secrets
+                  key: RABBITMQ_PASSWORD
+          ports:
+            - containerPort: 5672
+            - containerPort: 15672
+          volumeMounts:
+            - name: billing-queue
+              mountPath: /var/lib/rabbitmq/mnesia
+  volumeClaimTemplates:
+    - metadata:
+        name: billing-queue
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Mi

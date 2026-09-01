@@ -14,6 +14,7 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | Load balancer and EKS security groups | Defined; not provisioned |
 | ECR repositories | Defined; not provisioned |
 | EKS control plane and managed node group | Defined; not provisioned |
+| Kubernetes base workload manifests | Defined; not deployed |
 | Kubernetes deployment to AWS | Planned |
 | Monitoring, logging, autoscaling, and Cognito | Planned |
 
@@ -80,9 +81,13 @@ terraform/             AWS infrastructure configuration
   ecr.tf               Private application image repositories and retention rules
   eks.tf               EKS control plane, managed node group, IAM roles, and node template
   outputs.tf           Network IDs for later infrastructure components
+kubernetes/
+  base/                Portable orchestrator workload manifests
 ```
 
 The reference application is currently cloned separately at `/home/eb/scripts/reboot/devops/orchestrator-cd`. Its Kubernetes manifests are the source model for the future EKS deployment.
+
+The copied `kubernetes/base/` manifests preserve the six workload components and their private service DNS names. All Services, including `api-gateway-app`, are `ClusterIP`: an AWS-specific overlay will later define an Ingress, which is the only public entry point. The base intentionally contains no credentials, AWS annotations, ECR image references, or storage-class choice. It references an `orchestrator-secrets` Secret that a later overlay will create from an ignored local file or synchronize from AWS Secrets Manager.
 
 ## Prerequisites
 
@@ -110,6 +115,7 @@ Run Terraform commands from the `terraform/` directory.
 terraform fmt -check -recursive
 terraform init -backend=false
 terraform validate
+kubectl kustomize ../kubernetes/base
 ```
 
 The current configuration needs no AWS credentials because it defines no AWS resources. Later, use an uncommitted `terraform.tfvars` file to select a region, environment, and optional AWS CLI profile:
@@ -179,6 +185,7 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 
 ## Roadmap
 
-1. Adapt the supplied Kubernetes manifests for AWS ingress, storage, secrets, and image locations.
-2. Configure TLS, Cognito, logging, monitoring, and autoscaling.
-3. Perform load, recovery, security, and cost validation on a real AWS account.
+1. Add the EKS storage and load-balancer controller prerequisites.
+2. Create AWS Kubernetes overlays for ingress, storage, secrets, and ECR image locations.
+3. Configure TLS, Cognito, logging, monitoring, and autoscaling.
+4. Perform load, recovery, security, and cost validation on a real AWS account.
