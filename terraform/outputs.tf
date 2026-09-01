@@ -47,3 +47,8 @@ output "api_certificate_arn" {
   description = "Validated ACM certificate ARN for the API Application Load Balancer."
   value       = aws_acm_certificate_validation.api.certificate_arn
 }
+
+output "api_load_balancer_dns_name" {
+  description = "AWS-generated DNS name for the API Application Load Balancer."
+  value       = data.aws_lb.api.dns_name
+}

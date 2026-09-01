@@ -18,6 +18,7 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | EBS CSI driver and retained gp3 StorageClass | Defined; not provisioned |
 | AWS Load Balancer Controller | Defined; not provisioned |
 | ACM certificate and Route 53 DNS validation | Defined; not provisioned |
+| HTTPS API Ingress and Route 53 alias | Defined; not provisioned |
 | Kubernetes deployment to AWS | Planned |
 | Monitoring, logging, autoscaling, and Cognito | Planned |
 
@@ -167,6 +168,8 @@ Public subnets are tagged for the AWS Load Balancer Controller to discover them 
 
 Terraform looks up the existing public Route 53 hosted zone named by `route53_zone_name`, requests an ACM certificate for `api.<zone>`, and creates ACM's DNS validation record in that zone. The certificate is issued in the same region as the future ALB and its ARN will be passed to the HTTPS Ingress in the next step.
 
+Terraform manages the `api-gateway` Kubernetes Ingress. The AWS Load Balancer Controller creates an internet-facing ALB in the tagged public subnets, attaches the predefined ALB security group, and registers API gateway pod IPs as targets. HTTP on port `80` redirects to HTTPS on `443`, which uses the ACM certificate. Terraform waits for the ALB, looks it up by its deterministic name, and creates the `api.<zone>` Route 53 alias record. The `api-gateway-app` Service must be deployed before the controller can register healthy targets.
+
 ### Container Images
 
 ECR repositories are defined for the three application images: `api-gateway-app`, `inventory-app`, and `billing-app`. Each repository is private, encrypted at rest, scanned on push, and configured with immutable tags. The deployment workflow will build an image, tag it with an immutable release version or commit SHA, push it to ECR, and update the Kubernetes manifest to use that exact image reference.
@@ -200,7 +203,6 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 
 ## Roadmap
 
-1. Create a Terraform-managed Ingress for the API gateway.
-2. Create Terraform-managed Kubernetes secrets and ECR image configuration.
-3. Configure Cognito, logging, monitoring, and autoscaling.
-4. Perform load, recovery, security, and cost validation on a real AWS account.
+1. Create Terraform-managed Kubernetes secrets and ECR image configuration.
+2. Configure Cognito, logging, monitoring, and autoscaling.
+3. Perform load, recovery, security, and cost validation on a real AWS account.
