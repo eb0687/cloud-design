@@ -1,5 +1,4 @@
 aws_region  = "eu-west-3"
-aws_profile = "cloud-design"
 environment = "dev"
 
 kubernetes_version    = "1.34"

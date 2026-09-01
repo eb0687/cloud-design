@@ -143,7 +143,6 @@ It selects a region, environment, EKS version, trusted API CIDR, and Route 53 zo
 ```hcl
 aws_region  = "eu-west-3"
 environment = "dev"
-aws_profile = "cloud-design"
 kubernetes_version    = "1.34"
 eks_api_allowed_cidrs = ["203.0.113.10/32"]
 route53_zone_name     = "example.com"
@@ -155,6 +154,8 @@ metrics_server_chart_version           = "replace-with-a-compatible-version"
 ```
 
 Replace `203.0.113.10/32` with your own public IP followed by `/32`.
+
+Terraform uses the standard AWS credential chain. Select an AWS CLI profile with `AWS_PROFILE=cloud-design` before running Terraform, or use the default configured credentials.
 
 `terraform/*.tfvars`, state files, and Terraform's plugin directory are excluded from Git. The provider lock file is committed so collaborators use the same provider version.
 

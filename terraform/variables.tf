@@ -9,13 +9,6 @@ variable "aws_region" {
   }
 }
 
-variable "aws_profile" {
-  description = "Optional AWS CLI profile to use when applying this configuration."
-  type        = string
-  default     = null
-  nullable    = true
-}
-
 variable "project_name" {
   description = "Short project identifier included in AWS resource names and tags."
   type        = string
