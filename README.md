@@ -19,8 +19,9 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | AWS Load Balancer Controller                  | Defined; not provisioned                               |
 | ACM certificate and Route 53 DNS validation   | Defined; not provisioned                               |
 | HTTPS API Ingress and Route 53 alias          | Defined; not provisioned                               |
+| Cognito API authentication                    | Defined; not provisioned                               |
 | Kubernetes deployment to AWS                  | Planned                                                |
-| Monitoring, logging, autoscaling, and Cognito | Planned                                                |
+| CloudWatch, Metrics Server, HPA, and Cognito | Defined; not provisioned                                   |
 
 ## Architecture
 
@@ -85,7 +86,10 @@ terraform/             AWS infrastructure configuration
   ecr.tf               Private application image repositories and retention rules
   eks.tf               EKS control plane, managed node group, IAM roles, and node template
   certificate.tf       ACM certificate and Route 53 DNS validation record
+  cognito.tf           Cognito user pool, ALB client, and hosted domain
   load-balancer-controller.tf  ALB controller IAM role and Helm release
+  logging.tf           CloudWatch log groups and Fluent Bit log forwarding
+  monitoring.tf        Metrics Server Helm release for HPA CPU metrics
   secrets.tf           Kubernetes application Secret
   secrets.tfvars.example  Placeholder-only secret input template
   outputs.tf           Network IDs for later infrastructure components
@@ -144,6 +148,10 @@ kubernetes_version    = "1.34"
 eks_api_allowed_cidrs = ["203.0.113.10/32"]
 route53_zone_name     = "example.com"
 api_subdomain         = "api"
+cognito_domain_prefix = "replace-with-a-globally-unique-prefix"
+cloudwatch_log_retention_days          = 30
+aws_for_fluent_bit_chart_version       = "replace-with-a-compatible-version"
+metrics_server_chart_version           = "replace-with-a-compatible-version"
 ```
 
 Replace `203.0.113.10/32` with your own public IP followed by `/32`.
@@ -179,6 +187,13 @@ EKS is selected because the reference project is already expressed as Kubernetes
 Terraform defines an EKS control plane in the private subnets, with API and audit logs sent to CloudWatch. A managed node group initially runs two on-demand `t3.medium` nodes, one in each Availability Zone. Nodes have encrypted `gp3` root volumes, require IMDSv2, and use narrowly scoped IAM policies for EKS operation and private ECR image pulls.
 
 The Kubernetes API has both private and public endpoints. The public endpoint is restricted to the required `eks_api_allowed_cidrs` input; set this to trusted administrator IP addresses only, never `0.0.0.0/0`. The Kubernetes version is also required input, so a deployment explicitly selects an EKS version AWS supports at that time.
+
+### Scaling and Availability
+
+- EKS nodes span two Availability Zones.
+- The ALB distributes public traffic across API gateway replicas.
+- Metrics Server supplies CPU metrics to the gateway and inventory app HPAs, which scale from one to three replicas at 60% CPU.
+- Current limitations are one NAT gateway and single-replica PostgreSQL and RabbitMQ workloads.
 
 ### Stateful Workloads
 
@@ -216,21 +231,22 @@ The provided application images can be mirrored into the Terraform-created ECR r
 
 The script requires Docker, AWS CLI credentials, `jq`, and Terraform state from an applied ECR configuration. It pulls the three `ghcr.io/01-edu` application images, tags each with the supplied release tag, pushes them to ECR, and prints the source and ECR digests. It does not build images, push stateful dependency images, or alter the Kubernetes deployment.
 
-### Security
+### Security Boundaries
 
-- TLS will terminate at the ALB using AWS Certificate Manager.
-- Cognito will provide managed authentication for the public API.
-- The ALB security group accepts ports `80` and `443` from configured public CIDRs. Port `80` will only redirect to HTTPS.
-- The ALB can reach EKS only on the API gateway port (`3000`); EKS allows that port only from the ALB security group.
-- EKS nodes accept unrestricted traffic only from other EKS nodes; Kubernetes NetworkPolicies will further restrict pod-to-pod traffic.
-- Kubernetes Secrets will not be committed. AWS Secrets Manager integration is planned for the deployed environment.
-- Node IAM roles have only the baseline EKS, CNI, and ECR-pull policies; IAM roles for service accounts will give Kubernetes controllers narrowly scoped AWS access.
-- Network policies will restrict pod-to-pod traffic to required application paths.
-- Terraform creates the `orchestrator-secrets` Kubernetes Secret from ignored sensitive input. The plaintext remains in Terraform state, so production should use a secured remote state backend and later migrate to AWS Secrets Manager synchronization.
+- Internet traffic reaches only the ALB on ports `80` and `443`; port `80` redirects to HTTPS.
+- The ALB reaches only `api-gateway-app` on port `3000`.
+- The gateway, applications, databases, and RabbitMQ communicate through private Kubernetes Services.
+- PostgreSQL and RabbitMQ have no public endpoint.
+- Cognito authenticates public API requests at the ALB before they reach the gateway.
+- NetworkPolicies and AWS Secrets Manager synchronization remain planned controls.
 
-## Operations Plan
+## Logging and Monitoring
 
-CloudWatch logging and metrics, Kubernetes readiness and liveness probes, EKS metrics, and the supplied application HPAs will provide the initial operational view. The final deployment will document dashboards, alert thresholds, log retention, load testing, and scaling results.
+- EKS API, audit, authenticator, controller manager, and scheduler logs use the retained CloudWatch control-plane log group.
+- Fluent Bit forwards container stdout and stderr to the retained application CloudWatch log group using an OIDC-bound IAM role.
+- Metrics Server supplies resource metrics to Kubernetes HPAs.
+- CloudWatch dashboards and alarms provide the operational view without deploying a separate Prometheus or Grafana stack.
+- Replace all chart-version placeholders in `terraform.tfvars` with versions compatible with the chosen EKS Kubernetes version.
 
 ## Cost Management
 

@@ -73,7 +73,10 @@ resource "aws_eks_cluster" "this" {
     subnet_ids              = values(aws_subnet.private)[*].id
   }
 
-  depends_on = [aws_iam_role_policy_attachment.eks_cluster]
+  depends_on = [
+    aws_cloudwatch_log_group.eks_control_plane,
+    aws_iam_role_policy_attachment.eks_cluster,
+  ]
 
   tags = {
     Name = local.name_prefix

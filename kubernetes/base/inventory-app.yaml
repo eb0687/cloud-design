@@ -59,7 +59,7 @@ spec:
             requests:
               cpu: 100m
 ---
-apiVersion: autoscaling/v1
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: inventory-app
@@ -70,4 +70,10 @@ spec:
     name: inventory-app
   minReplicas: 1
   maxReplicas: 3
-  targetCPUUtilizationPercentage: 60
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60

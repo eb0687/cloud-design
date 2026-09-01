@@ -7,13 +7,18 @@ resource "kubernetes_ingress_v1" "api" {
     name = "api-gateway"
 
     annotations = {
-      "alb.ingress.kubernetes.io/certificate-arn"    = aws_acm_certificate_validation.api.certificate_arn
-      "alb.ingress.kubernetes.io/listen-ports"       = "[{\"HTTP\": 80}, {\"HTTPS\": 443}]"
-      "alb.ingress.kubernetes.io/load-balancer-name" = local.api_load_balancer_name
-      "alb.ingress.kubernetes.io/scheme"             = "internet-facing"
-      "alb.ingress.kubernetes.io/security-groups"    = aws_security_group.alb.id
-      "alb.ingress.kubernetes.io/ssl-redirect"       = "443"
-      "alb.ingress.kubernetes.io/target-type"        = "ip"
+      "alb.ingress.kubernetes.io/auth-idp"                        = jsonencode({ type = "cognito", userPoolARN = aws_cognito_user_pool.api.arn, userPoolClientID = aws_cognito_user_pool_client.api_alb.id, userPoolDomain = aws_cognito_user_pool_domain.api.domain })
+      "alb.ingress.kubernetes.io/auth-on-unauthenticated-request" = "authenticate"
+      "alb.ingress.kubernetes.io/auth-scope"                      = "openid"
+      "alb.ingress.kubernetes.io/auth-session-timeout"            = "3600"
+      "alb.ingress.kubernetes.io/auth-type"                       = "cognito"
+      "alb.ingress.kubernetes.io/certificate-arn"                 = aws_acm_certificate_validation.api.certificate_arn
+      "alb.ingress.kubernetes.io/listen-ports"                    = "[{\"HTTP\": 80}, {\"HTTPS\": 443}]"
+      "alb.ingress.kubernetes.io/load-balancer-name"              = local.api_load_balancer_name
+      "alb.ingress.kubernetes.io/scheme"                          = "internet-facing"
+      "alb.ingress.kubernetes.io/security-groups"                 = aws_security_group.alb.id
+      "alb.ingress.kubernetes.io/ssl-redirect"                    = "443"
+      "alb.ingress.kubernetes.io/target-type"                     = "ip"
     }
   }
 
@@ -47,6 +52,7 @@ resource "kubernetes_ingress_v1" "api" {
   depends_on = [
     helm_release.aws_load_balancer_controller,
     aws_acm_certificate_validation.api,
+    aws_cognito_user_pool_domain.api,
   ]
 }
 

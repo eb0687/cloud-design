@@ -52,3 +52,8 @@ output "api_load_balancer_dns_name" {
   description = "AWS-generated DNS name for the API Application Load Balancer."
   value       = data.aws_lb.api.dns_name
 }
+
+output "cognito_user_pool_id" {
+  description = "Cognito user pool protecting the public API."
+  value       = aws_cognito_user_pool.api.id
+}

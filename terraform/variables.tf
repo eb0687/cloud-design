@@ -193,3 +193,37 @@ variable "orchestrator_secret_values" {
     error_message = "orchestrator_secret_values must contain every required database and RabbitMQ key."
   }
 }
+
+variable "cognito_domain_prefix" {
+  description = "Globally unique Cognito hosted-domain prefix for the API authentication flow."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.cognito_domain_prefix))
+    error_message = "cognito_domain_prefix must be a lowercase DNS label."
+  }
+}
+
+variable "cloudwatch_log_retention_days" {
+  description = "CloudWatch log retention period for EKS control-plane and application logs."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365], var.cloudwatch_log_retention_days)
+    error_message = "cloudwatch_log_retention_days must be a supported CloudWatch retention period."
+  }
+}
+
+variable "aws_for_fluent_bit_chart_version" {
+  description = "AWS for Fluent Bit Helm chart version used for application log forwarding."
+  type        = string
+  nullable    = false
+}
+
+variable "metrics_server_chart_version" {
+  description = "Metrics Server Helm chart version used by Kubernetes HPAs."
+  type        = string
+  nullable    = false
+}
