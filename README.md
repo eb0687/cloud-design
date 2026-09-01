@@ -17,6 +17,7 @@ The Terraform root configuration is complete and validates locally. AWS resource
 | Kubernetes base workload manifests | Defined; not deployed |
 | EBS CSI driver and AWS storage overlay | Defined; not provisioned |
 | AWS Load Balancer Controller | Defined; not provisioned |
+| ACM certificate and Route 53 DNS validation | Defined; not provisioned |
 | Kubernetes deployment to AWS | Planned |
 | Monitoring, logging, autoscaling, and Cognito | Planned |
 
@@ -82,6 +83,7 @@ terraform/             AWS infrastructure configuration
   security.tf          Security groups and ingress/egress rules
   ecr.tf               Private application image repositories and retention rules
   eks.tf               EKS control plane, managed node group, IAM roles, and node template
+  certificate.tf       ACM certificate and Route 53 DNS validation record
   load-balancer-controller.tf  ALB controller IAM role and Helm release
   outputs.tf           Network IDs for later infrastructure components
 kubernetes/
@@ -131,6 +133,8 @@ environment = "dev"
 aws_profile = "cloud-design"
 kubernetes_version    = "1.34"
 eks_api_allowed_cidrs = ["203.0.113.10/32"]
+route53_zone_name     = "example.com"
+api_subdomain         = "api"
 ```
 
 `terraform/*.tfvars`, state files, and Terraform's plugin directory are excluded from Git. The provider lock file is committed so collaborators use the same provider version.
@@ -162,6 +166,8 @@ The VPC spans `eu-west-3a` and `eu-west-3b`, with a `/16` VPC CIDR. Public load-
 The public route table sends internet-bound traffic to an Internet Gateway. Both private subnets instead use one NAT gateway in the first public subnet, allowing private workloads to pull images and receive updates without accepting unsolicited inbound internet traffic. A single NAT gateway is an intentional development cost trade-off and a single-AZ failure point. A production environment should use a NAT gateway per Availability Zone or use VPC endpoints for supported AWS services.
 
 Public subnets are tagged for the AWS Load Balancer Controller to discover them when it creates internet-facing ALBs. Private subnets are separately tagged for internal ALBs. The controller is installed through a pinned Helm chart and has an IAM role bound only to its `kube-system/aws-load-balancer-controller` service account through EKS OIDC. Its permissions are the AWS-recommended policy for controller v2.14.1, stored in this repository for review and reproducibility.
+
+Terraform looks up the existing public Route 53 hosted zone named by `route53_zone_name`, requests an ACM certificate for `api.<zone>`, and creates ACM's DNS validation record in that zone. The certificate is issued in the same region as the future ALB and its ARN will be passed to the HTTPS Ingress in the next step.
 
 ### Container Images
 
@@ -198,5 +204,5 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 
 1. Create an AWS Ingress overlay for the API gateway.
 2. Create AWS Kubernetes overlays for secrets and ECR image locations.
-3. Configure TLS, Cognito, logging, monitoring, and autoscaling.
+3. Configure Cognito, logging, monitoring, and autoscaling.
 4. Perform load, recovery, security, and cost validation on a real AWS account.

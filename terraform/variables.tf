@@ -147,3 +147,25 @@ variable "aws_load_balancer_controller_chart_version" {
     error_message = "aws_load_balancer_controller_chart_version must use a semantic version, such as 1.14.1."
   }
 }
+
+variable "route53_zone_name" {
+  description = "Existing public Route 53 hosted-zone name used for API DNS and ACM validation."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = length(trim(var.route53_zone_name, ".")) > 0
+    error_message = "route53_zone_name must be a non-empty DNS zone name, such as example.com."
+  }
+}
+
+variable "api_subdomain" {
+  description = "Subdomain used for the public API within route53_zone_name."
+  type        = string
+  default     = "api"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.api_subdomain))
+    error_message = "api_subdomain must be a lowercase DNS label."
+  }
+}

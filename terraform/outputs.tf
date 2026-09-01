@@ -37,3 +37,13 @@ output "eks_cluster_endpoint" {
   description = "Kubernetes API endpoint for the EKS cluster."
   value       = aws_eks_cluster.this.endpoint
 }
+
+output "api_domain_name" {
+  description = "Public hostname assigned to the API gateway."
+  value       = local.api_domain_name
+}
+
+output "api_certificate_arn" {
+  description = "Validated ACM certificate ARN for the API Application Load Balancer."
+  value       = aws_acm_certificate_validation.api.certificate_arn
+}
