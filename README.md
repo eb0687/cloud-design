@@ -199,7 +199,7 @@ Terraform manages the `api-gateway` Kubernetes Ingress. The AWS Load Balancer Co
 
 ### Container Images
 
-ECR repositories are defined for the three application images: `api-gateway-app`, `inventory-app`, and `billing-app`. Each repository is private, encrypted at rest, scanned on push, and configured with immutable tags. The deployment workflow will build an image, tag it with an immutable release version or commit SHA, push it to ECR, and update the Kubernetes manifest to use that exact image reference.
+ECR repositories are defined for the three application images: `api-gateway-app`, `inventory-app`, and `billing-app`. Each repository is private, encrypted at rest, and configured with immutable tags. Amazon Inspector is enabled for ECR and continuously scans images in this project's repositories for operating-system and language-package vulnerabilities, including when new relevant CVEs are published. Review findings in Amazon Inspector or ECR before deploying an image; enhanced scanning may incur Amazon Inspector charges.
 
 Untagged images expire after seven days and each repository retains its 20 most recent images. This limits registry storage costs while retaining a practical rollback window. PostgreSQL and RabbitMQ are stateful dependencies; their image sourcing will be documented when their EKS deployment is adapted.
 

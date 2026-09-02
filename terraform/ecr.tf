@@ -6,15 +6,33 @@ locals {
   ])
 }
 
+data "aws_caller_identity" "current" {}
+
+resource "aws_inspector2_enabler" "ecr" {
+  account_ids    = [data.aws_caller_identity.current.account_id]
+  resource_types = ["ECR"]
+}
+
+resource "aws_ecr_registry_scanning_configuration" "application" {
+  scan_type = "ENHANCED"
+
+  rule {
+    scan_frequency = "CONTINUOUS_SCAN"
+
+    repository_filter {
+      filter      = "${local.name_prefix}/*"
+      filter_type = "WILDCARD"
+    }
+  }
+
+  depends_on = [aws_inspector2_enabler.ecr]
+}
+
 resource "aws_ecr_repository" "application" {
   for_each = local.application_images
 
   name                 = "${local.name_prefix}/${each.value}"
   image_tag_mutability = "IMMUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
 
   tags = {
     Name = "${local.name_prefix}-${each.value}"
