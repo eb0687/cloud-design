@@ -143,6 +143,11 @@ resource "aws_eks_node_group" "default" {
     max_unavailable = 1
   }
 
+  lifecycle {
+    # Cluster Autoscaler adjusts desired capacity when pods cannot be scheduled.
+    ignore_changes = [scaling_config[0].desired_size]
+  }
+
   labels = {
     workload = "application"
   }

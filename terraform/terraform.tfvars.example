@@ -10,3 +10,4 @@ cognito_domain_prefix = "replace-with-a-globally-unique-prefix"
 cloudwatch_log_retention_days  = 30
 aws_for_fluent_bit_chart_version = "replace-with-a-compatible-version"
 metrics_server_chart_version = "replace-with-a-compatible-version"
+cluster_autoscaler_chart_version = "replace-with-a-compatible-version"

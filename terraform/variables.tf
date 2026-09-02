@@ -220,3 +220,9 @@ variable "metrics_server_chart_version" {
   type        = string
   nullable    = false
 }
+
+variable "cluster_autoscaler_chart_version" {
+  description = "Cluster Autoscaler Helm chart version compatible with the selected EKS Kubernetes version."
+  type        = string
+  nullable    = false
+}

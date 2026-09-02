@@ -130,6 +130,7 @@ cognito_domain_prefix = "replace-with-a-globally-unique-prefix"
 cloudwatch_log_retention_days          = 30
 aws_for_fluent_bit_chart_version       = "replace-with-a-compatible-version"
 metrics_server_chart_version           = "replace-with-a-compatible-version"
+cluster_autoscaler_chart_version       = "replace-with-a-compatible-version"
 ```
 
 Replace `203.0.113.10/32` with your own public IP followed by `/32`.
@@ -155,7 +156,7 @@ This sequence describes a real AWS deployment. It has not been run in this proje
 - Then run `terraform apply -var-file=secrets.tfvars`.
 - Optionally mirror application images to ECR with `./scripts/mirror-images.sh release-001`.
 - Deploy the supplied workloads with `kubectl apply -k kubernetes/base`.
-- Verify pods, PVCs, ALB targets, logs, DNS, and `https://api.<domain>`.
+- Verify pods, PVCs, ALB targets, logs, DNS, node scaling, and `https://api.<domain>`.
 - Delete temporary infrastructure with `terraform destroy -var-file=secrets.tfvars` and manually remove retained EBS volumes when no longer needed.
 
 ## Design Decisions
@@ -173,6 +174,7 @@ The Kubernetes API has both private and public endpoints. The public endpoint is
 - EKS nodes span two Availability Zones.
 - The ALB distributes public traffic across API gateway replicas.
 - Metrics Server supplies CPU metrics to the gateway and inventory app HPAs, which scale from one to three replicas at 60% CPU.
+- Cluster Autoscaler increases the managed node group from two to at most three nodes when HPA-created pods cannot be scheduled, and reduces it when that capacity is no longer needed.
 - Current limitations are one NAT gateway and single-replica PostgreSQL and RabbitMQ workloads.
 
 ### Stateful Workloads
