@@ -2,27 +2,6 @@
 
 Infrastructure-as-code design for deploying the [01-edu orchestrator](https://github.com/01-edu/orchestrator) microservices application to AWS. The application is developed and verified locally first; Terraform describes the AWS environment that will later host it.
 
-## Status
-
-The Terraform root configuration is complete and validates locally. AWS resources have not yet been provisioned because this project is being developed without an AWS account.
-
-| Area                                          | Status                                                 |
-| --------------------------------------------- | ------------------------------------------------------ |
-| Local Kubernetes application                  | Assumed working from the supplied orchestrator project |
-| Terraform provider and inputs                 | Complete                                               |
-| VPC and subnet routing                        | Defined; not provisioned                               |
-| Load balancer and EKS security groups         | Defined; not provisioned                               |
-| ECR repositories                              | Defined; not provisioned                               |
-| EKS control plane and managed node group      | Defined; not provisioned                               |
-| Kubernetes base workload manifests            | Defined; not deployed                                  |
-| EBS CSI driver and retained gp3 StorageClass  | Defined; not provisioned                               |
-| AWS Load Balancer Controller                  | Defined; not provisioned                               |
-| ACM certificate and Route 53 DNS validation   | Defined; not provisioned                               |
-| HTTPS API Ingress and Route 53 alias          | Defined; not provisioned                               |
-| Cognito API authentication                    | Defined; not provisioned                               |
-| Kubernetes deployment to AWS                  | Planned                                                |
-| CloudWatch, Metrics Server, HPA, and Cognito | Defined; not provisioned                                   |
-
 ## Architecture
 
 The initial AWS implementation preserves the supplied Kubernetes workload model. All six application components run in Amazon EKS. PostgreSQL and RabbitMQ use persistent volumes backed by Amazon EBS and remain private to the cluster.
@@ -198,7 +177,7 @@ The Kubernetes API has both private and public endpoints. The public endpoint is
 
 ### Stateful Workloads
 
-For the initial implementation, both PostgreSQL databases and RabbitMQ remain Kubernetes StatefulSets in EKS with EBS-backed persistent volumes. This directly reflects the project requirements and limits the first AWS implementation to one orchestration model.
+For this implementation, both PostgreSQL databases and RabbitMQ remain Kubernetes StatefulSets in EKS with EBS-backed persistent volumes. This directly reflects the project requirements and limits the first AWS implementation to one orchestration model.
 
 Terraform creates a default `gp3` EBS StorageClass, so the base PVCs select it without AWS-specific manifest patches. The EKS EBS CSI add-on dynamically creates an encrypted EBS volume when a pod is scheduled. Its `WaitForFirstConsumer` binding mode creates the volume in the pod's Availability Zone, preventing cross-AZ attachment failures. The CSI controller uses an IAM role bound only to its Kubernetes service account through EKS OIDC.
 
@@ -236,7 +215,7 @@ The script requires Docker, AWS CLI credentials, `jq`, and Terraform state from 
 
 - Internet traffic reaches only the ALB on ports `80` and `443`; port `80` redirects to HTTPS.
 - The ALB reaches only `api-gateway-app` on port `3000`.
-- The gateway, applications, databases, and RabbitMQ communicate through private Kubernetes Services.
+- The gateway, applications, databases, and RabbitMQ communicate through private Kubernetes Services (this can be hardened with NetworkPolicies to restrict service to service access).
 - PostgreSQL and RabbitMQ have no public endpoint.
 - Cognito authenticates public API requests at the ALB before they reach the gateway.
 - NetworkPolicies and AWS Secrets Manager synchronization remain planned controls.
@@ -258,10 +237,3 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 - Review `terraform plan` before every apply.
 - Destroy temporary environments with `terraform destroy` when finished.
 - Remove unused container images, volumes, and load balancers.
-
-## Roadmap
-
-1. Configure versioned ECR images for application deployment.
-2. Configure Cognito, logging, monitoring, and autoscaling.
-3. Migrate application secrets to AWS Secrets Manager synchronization.
-4. Perform load, recovery, security, and cost validation on a real AWS account.
