@@ -111,8 +111,6 @@ terraform validate
 kubectl kustomize ../kubernetes/base
 ```
 
-The current configuration needs no AWS credentials because it defines no AWS resources. For a real deployment, create the ignored non-secret input file:
-
 ```sh
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 ```
