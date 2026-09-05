@@ -108,7 +108,6 @@ Run Terraform commands from the `terraform/` directory.
 terraform fmt -check -recursive
 terraform init -backend=false
 terraform validate
-kubectl kustomize ../kubernetes/base
 ```
 
 ```sh
@@ -152,6 +151,13 @@ This sequence describes a real AWS deployment. It has not been run in this proje
 - Configure AWS CLI, Docker, Terraform, `kubectl`, `terraform.tfvars`, and ignored `secrets.tfvars`.
 - Review `terraform plan -var-file=secrets.tfvars`.
 - Then run `terraform apply -var-file=secrets.tfvars`.
+- Configure `kubectl` to access the EKS cluster:
+
+  ```sh
+  aws eks update-kubeconfig --region eu-west-3 --name <cluster-name>
+  ```
+
+  Get `<cluster-name>` with `terraform output -raw eks_cluster_name`.
 - Optionally mirror application images to ECR with `./scripts/mirror-images.sh release-001`.
 - Deploy the supplied workloads with `kubectl apply -f kubernetes/base/`.
 - Verify pods, PVCs, ALB targets, logs, DNS, node scaling, and `https://api.<domain>`.
