@@ -153,7 +153,7 @@ This sequence describes a real AWS deployment. It has not been run in this proje
 - Review `terraform plan -var-file=secrets.tfvars`.
 - Then run `terraform apply -var-file=secrets.tfvars`.
 - Optionally mirror application images to ECR with `./scripts/mirror-images.sh release-001`.
-- Deploy the supplied workloads with `kubectl apply -k kubernetes/base`.
+- Deploy the supplied workloads with `kubectl apply -f kubernetes/base/`.
 - Verify pods, PVCs, ALB targets, logs, DNS, node scaling, and `https://api.<domain>`.
 - Delete temporary infrastructure with `terraform destroy -var-file=secrets.tfvars` and manually remove retained EBS volumes when no longer needed.
 
