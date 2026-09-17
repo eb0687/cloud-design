@@ -6,8 +6,8 @@ eks_api_allowed_cidrs = ["203.0.113.42/32"]
 
 route53_zone_name = "example.com"
 api_subdomain     = "api"
-cognito_domain_prefix = "replace-with-a-globally-unique-prefix"
+cognito_domain_prefix = "cloud-design-dev-login"
 cloudwatch_log_retention_days  = 30
-aws_for_fluent_bit_chart_version = "replace-with-a-compatible-version"
-metrics_server_chart_version = "replace-with-a-compatible-version"
-cluster_autoscaler_chart_version = "replace-with-a-compatible-version"
+aws_for_fluent_bit_chart_version = "0.2.0"
+metrics_server_chart_version     = "3.14.0"
+cluster_autoscaler_chart_version = "9.53.0"
