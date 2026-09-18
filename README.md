@@ -158,6 +158,7 @@ This sequence describes a real AWS deployment. It has not been run in this proje
   ```
 
   Get `<cluster-name>` with `terraform output -raw eks_cluster_name`.
+
 - Optionally mirror application images to ECR with `./scripts/mirror-images.sh release-001`.
 - Deploy the supplied workloads with `kubectl apply -f kubernetes/base/`.
 - Verify pods, PVCs, ALB targets, logs, DNS, node scaling, and `https://api.<domain>`.
@@ -253,7 +254,6 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 - Configure kubectl to connect to the new EKS cluster.
   `aws eks update-kubeconfig --region eu-west-3 --name "$(terraform -chdir=terraform output -raw eks_cluster_name)"`
 - Mirror the three application images into ECR using ./scripts/mirror-images.sh <release-tag>.
-- Update Kubernetes image references to use ECR if you want to deploy those mirrored images.
 - Deploy the application manifests with kubectl apply -f kubernetes/base/.
 - Kubernetes starts PostgreSQL, RabbitMQ, inventory, billing, and API gateway workloads.
 - Users access https://api.<domain> through Route 53, the ALB, Cognito authentication, and finally the API gateway.
