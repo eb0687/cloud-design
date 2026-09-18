@@ -251,6 +251,7 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 - Run terraform init, review terraform plan, then run terraform apply.
 - Terraform creates the VPC, EKS cluster, worker nodes, ECR repositories, EBS storage support, logging, monitoring, autoscaling, Cognito, TLS certificate, ALB Ingress, and DNS record.
 - Configure kubectl to connect to the new EKS cluster.
+  `aws eks update-kubeconfig --region eu-west-3 --name "$(terraform -chdir=terraform output -raw eks_cluster_name)"`
 - Mirror the three application images into ECR using ./scripts/mirror-images.sh <release-tag>.
 - Update Kubernetes image references to use ECR if you want to deploy those mirrored images.
 - Deploy the application manifests with kubectl apply -f kubernetes/base/.
