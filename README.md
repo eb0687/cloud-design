@@ -243,3 +243,18 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 - Review `terraform plan` before every apply.
 - Destroy temporary environments with `terraform destroy` when finished.
 - Remove unused container images, volumes, and load balancers.
+
+## TLDR
+
+- Configure AWS credentials, Terraform, Docker, kubectl, and jq.
+- Create terraform.tfvars and secrets.tfvars from their example files.
+- Run terraform init, review terraform plan, then run terraform apply.
+- Terraform creates the VPC, EKS cluster, worker nodes, ECR repositories, EBS storage support, logging, monitoring, autoscaling, Cognito, TLS certificate, ALB Ingress, and DNS record.
+- Configure kubectl to connect to the new EKS cluster.
+- Mirror the three application images into ECR using ./scripts/mirror-images.sh <release-tag>.
+- Update Kubernetes image references to use ECR if you want to deploy those mirrored images.
+- Deploy the application manifests with kubectl apply -f kubernetes/base/.
+- Kubernetes starts PostgreSQL, RabbitMQ, inventory, billing, and API gateway workloads.
+- Users access https://api.<domain> through Route 53, the ALB, Cognito authentication, and finally the API gateway.
+- Monitor logs in CloudWatch and scaling through Kubernetes HPAs and Cluster Autoscaler.
+- Destroy temporary infrastructure with Terraform and manually remove retained EBS volumes when finished.
