@@ -1,4 +1,6 @@
-image: hashicorp/terraform:1.15.0
+image:
+  name: hashicorp/terraform:1.15.0
+  entrypoint: [""]
 
 stages:
   - init
