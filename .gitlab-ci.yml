@@ -10,6 +10,10 @@ variables:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
 
+default:
+  tags:
+    - docker-ci
+
 init:
   stage: init
   script:
