@@ -1,0 +1,44 @@
+image: hashicorp/terraform:1.15.0
+
+stages:
+  - init
+  - validate
+  - plan
+
+variables:
+  TF_ROOT: terraform
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+init:
+  stage: init
+  script:
+    - terraform -chdir="$TF_ROOT" init -backend=false -input=false
+  artifacts:
+    paths:
+      - terraform/.terraform/
+    expire_in: 1 hour
+
+validate:
+  stage: validate
+  dependencies:
+    - init
+  script:
+    - terraform -chdir="$TF_ROOT" fmt -check -recursive
+    - terraform -chdir="$TF_ROOT" validate
+
+plan:
+  stage: plan
+  dependencies:
+    - init
+  script:
+    - terraform -chdir="$TF_ROOT" plan -input=false -refresh=false -out=plan.tfplan
+  artifacts:
+    paths:
+      - terraform/plan.tfplan
+    expire_in: 1 week
+  allow_failure: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+    - when: never
