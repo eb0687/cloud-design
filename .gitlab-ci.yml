@@ -20,29 +20,19 @@ init:
   stage: init
   script:
     - terraform -chdir="$TF_ROOT" init -backend=false -input=false
-  artifacts:
-    paths:
-      - terraform/.terraform/
-    expire_in: 1 hour
 
 validate:
   stage: validate
-  dependencies:
-    - init
   script:
+    - terraform -chdir="$TF_ROOT" init -backend=false -input=false
     - terraform -chdir="$TF_ROOT" fmt -check -recursive
     - terraform -chdir="$TF_ROOT" validate
 
 plan:
   stage: plan
-  dependencies:
-    - init
   script:
-    - terraform -chdir="$TF_ROOT" plan -input=false -refresh=false -out=plan.tfplan
-  artifacts:
-    paths:
-      - terraform/plan.tfplan
-    expire_in: 1 week
+    - terraform -chdir="$TF_ROOT" init -backend=false -input=false
+    - terraform -chdir="$TF_ROOT" plan -input=false -refresh=false
   allow_failure: true
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
