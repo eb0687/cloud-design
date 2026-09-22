@@ -3,38 +3,197 @@ image:
   entrypoint: [""]
 
 stages:
-  - init
   - validate
-  - plan
+  - plan_staging
+  - apply_staging
+  - bootstrap_staging
+  - plan_production
+  - approve_production
+  - apply_production
+  - bootstrap_production
 
 variables:
   TF_ROOT: terraform
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
+  TF_STATE_PREFIX: code-keeper/cloud-design
 
-default:
-  tags:
-    - docker-ci
+.terraform_init: &terraform_init >-
+  terraform -chdir="$TF_ROOT" init -input=false
+  -backend-config="bucket=$TF_STATE_BUCKET"
+  -backend-config="key=$TF_STATE_PREFIX/$TF_STATE_ENVIRONMENT.tfstate"
+  -backend-config="region=$AWS_REGION"
+  -backend-config="use_lockfile=true"
 
-init:
-  stage: init
-  script:
-    - terraform -chdir="$TF_ROOT" init -backend=false -input=false
+.cloud_rules: &cloud_rules
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CLOUD_DEPLOY_ENABLED == "true"'
 
 validate:
   stage: validate
+  tags: [docker-ci]
   script:
     - terraform -chdir="$TF_ROOT" init -backend=false -input=false
     - terraform -chdir="$TF_ROOT" fmt -check -recursive
     - terraform -chdir="$TF_ROOT" validate
 
-plan:
-  stage: plan
+plan_staging:
+  stage: plan_staging
+  tags: [docker-local]
+  <<: *cloud_rules
+  when: manual
+  allow_failure: false
+  variables:
+    TF_STATE_ENVIRONMENT: staging
   script:
-    - terraform -chdir="$TF_ROOT" init -backend=false -input=false
-    - terraform -chdir="$TF_ROOT" plan -input=false -refresh=false
-  allow_failure: true
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: manual
-    - when: never
+    - test -n "$TF_STATE_BUCKET"
+    - test -f "$TF_STAGING_VARS_FILE"
+    - test -f "$TF_SECRET_FILE"
+    - *terraform_init
+    - >-
+      terraform -chdir="$TF_ROOT" plan -input=false
+      -var-file="$TF_STAGING_VARS_FILE"
+      -var-file="$TF_SECRET_FILE"
+      -out=staging.tfplan
+  artifacts:
+    paths:
+      - terraform/staging.tfplan
+    expire_in: 1 day
+
+apply_staging:
+  stage: apply_staging
+  tags: [docker-local]
+  <<: *cloud_rules
+  when: manual
+  allow_failure: false
+  variables:
+    TF_STATE_ENVIRONMENT: staging
+  needs:
+    - job: plan_staging
+      artifacts: true
+  script:
+    - test -n "$TF_STATE_BUCKET"
+    - test -f "$TF_STAGING_VARS_FILE"
+    - test -f "$TF_SECRET_FILE"
+    - test -f "$TF_ROOT/staging.tfplan"
+    - *terraform_init
+    - terraform -chdir="$TF_ROOT" apply -input=false staging.tfplan
+  environment:
+    name: staging
+  resource_group: infrastructure-staging
+
+bootstrap_staging:
+  stage: bootstrap_staging
+  image: alpine:3.21
+  tags: [docker-local]
+  <<: *cloud_rules
+  allow_failure: false
+  variables:
+    KUBERNETES_CLUSTER: $STAGING_EKS_CLUSTER
+    KUBERNETES_NAMESPACE: $STAGING_KUBERNETES_NAMESPACE
+  needs:
+    - job: apply_staging
+      artifacts: false
+  before_script:
+    - apk add --no-cache aws-cli kubectl
+    - test -n "$KUBERNETES_CLUSTER"
+    - test -n "$KUBERNETES_NAMESPACE"
+    - aws eks update-kubeconfig --region "$AWS_REGION" --name "$KUBERNETES_CLUSTER"
+    - kubectl create namespace "$KUBERNETES_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+  script:
+    - kubectl --namespace "$KUBERNETES_NAMESPACE" apply -f kubernetes/base/
+    - kubectl --namespace "$KUBERNETES_NAMESPACE" rollout status deployment/inventory-app --timeout=10m
+    - kubectl --namespace "$KUBERNETES_NAMESPACE" rollout status statefulset/billing-app --timeout=10m
+    - kubectl --namespace "$KUBERNETES_NAMESPACE" rollout status deployment/api-gateway-app --timeout=10m
+  environment:
+    name: staging
+  resource_group: infrastructure-staging
+
+plan_production:
+  stage: plan_production
+  tags: [docker-local]
+  <<: *cloud_rules
+  when: manual
+  allow_failure: false
+  variables:
+    TF_STATE_ENVIRONMENT: production
+  needs:
+    - job: bootstrap_staging
+      artifacts: false
+  script:
+    - test -n "$TF_STATE_BUCKET"
+    - test -f "$TF_PRODUCTION_VARS_FILE"
+    - test -f "$TF_SECRET_FILE"
+    - *terraform_init
+    - >-
+      terraform -chdir="$TF_ROOT" plan -input=false
+      -var-file="$TF_PRODUCTION_VARS_FILE"
+      -var-file="$TF_SECRET_FILE"
+      -out=production.tfplan
+  artifacts:
+    paths:
+      - terraform/production.tfplan
+    expire_in: 1 day
+
+approve_production:
+  stage: approve_production
+  tags: [docker-local]
+  <<: *cloud_rules
+  when: manual
+  allow_failure: false
+  needs:
+    - job: plan_production
+      artifacts: false
+  script:
+    - echo "Production infrastructure approval granted."
+
+apply_production:
+  stage: apply_production
+  tags: [docker-local]
+  <<: *cloud_rules
+  when: manual
+  allow_failure: false
+  variables:
+    TF_STATE_ENVIRONMENT: production
+  needs:
+    - job: plan_production
+      artifacts: true
+    - job: approve_production
+      artifacts: false
+  script:
+    - test -n "$TF_STATE_BUCKET"
+    - test -f "$TF_PRODUCTION_VARS_FILE"
+    - test -f "$TF_SECRET_FILE"
+    - test -f "$TF_ROOT/production.tfplan"
+    - *terraform_init
+    - terraform -chdir="$TF_ROOT" apply -input=false production.tfplan
+  environment:
+    name: production
+  resource_group: infrastructure-production
+
+bootstrap_production:
+  stage: bootstrap_production
+  image: alpine:3.21
+  tags: [docker-local]
+  <<: *cloud_rules
+  allow_failure: false
+  variables:
+    KUBERNETES_CLUSTER: $PRODUCTION_EKS_CLUSTER
+    KUBERNETES_NAMESPACE: $PRODUCTION_KUBERNETES_NAMESPACE
+  needs:
+    - job: apply_production
+      artifacts: false
+  before_script:
+    - apk add --no-cache aws-cli kubectl
+    - test -n "$KUBERNETES_CLUSTER"
+    - test -n "$KUBERNETES_NAMESPACE"
+    - aws eks update-kubeconfig --region "$AWS_REGION" --name "$KUBERNETES_CLUSTER"
+    - kubectl create namespace "$KUBERNETES_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+  script:
+    - kubectl --namespace "$KUBERNETES_NAMESPACE" apply -f kubernetes/base/
+    - kubectl --namespace "$KUBERNETES_NAMESPACE" rollout status deployment/inventory-app --timeout=10m
+    - kubectl --namespace "$KUBERNETES_NAMESPACE" rollout status statefulset/billing-app --timeout=10m
+    - kubectl --namespace "$KUBERNETES_NAMESPACE" rollout status deployment/api-gateway-app --timeout=10m
+  environment:
+    name: production
+  resource_group: infrastructure-production

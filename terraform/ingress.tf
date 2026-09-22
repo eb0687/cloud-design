@@ -4,7 +4,8 @@ locals {
 
 resource "kubernetes_ingress_v1" "api" {
   metadata {
-    name = "api-gateway"
+    name      = "api-gateway"
+    namespace = var.kubernetes_namespace
 
     annotations = {
       "alb.ingress.kubernetes.io/auth-idp"                        = jsonencode({ type = "cognito", userPoolARN = aws_cognito_user_pool.api.arn, userPoolClientID = aws_cognito_user_pool_client.api_alb.id, userPoolDomain = aws_cognito_user_pool_domain.api.domain })

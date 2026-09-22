@@ -31,6 +31,17 @@ variable "environment" {
   }
 }
 
+variable "kubernetes_namespace" {
+  description = "Kubernetes namespace used by the application workloads and ingress."
+  type        = string
+  default     = "default"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", var.kubernetes_namespace))
+    error_message = "kubernetes_namespace must be a valid lowercase Kubernetes namespace."
+  }
+}
+
 variable "vpc_cidr" {
   description = "IPv4 CIDR block assigned to the VPC."
   type        = string

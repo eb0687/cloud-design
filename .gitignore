@@ -11,6 +11,8 @@ terraform/*.tfvars
 terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/tfplan
+terraform/environments/*.tfvars
+!terraform/environments/*.tfvars.example
 reports/
 Dockerfiles/.venv/
 **/__pycache__/
