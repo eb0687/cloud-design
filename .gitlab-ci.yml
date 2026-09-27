@@ -18,6 +18,13 @@ variables:
   TF_INPUT: "false"
   TF_STATE_PREFIX: code-keeper/cloud-design
 
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+
 .terraform_init: &terraform_init >-
   terraform -chdir="$TF_ROOT" init -input=false
   -backend-config="bucket=$TF_STATE_BUCKET"
