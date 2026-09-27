@@ -141,6 +141,11 @@ the cloud jobs:
 - AWS authentication variables, preferably GitLab OIDC; otherwise use
   protected `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` variables.
 
+Set `CLOUD_DEPLOY_ENABLED` in both the infrastructure project and each
+application project. The infrastructure pipeline and the application
+pipelines use it to keep AWS-dependent jobs disabled until cloud credentials
+and resources are ready.
+
 The AWS identity used by the runner needs access to the state bucket and the
 resources managed by Terraform. The state bucket must have versioning and
 encryption enabled, and its state lock file must be writable because the
