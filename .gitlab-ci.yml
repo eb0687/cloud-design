@@ -40,9 +40,11 @@ validate:
   stage: validate
   tags: [docker-ci]
   script:
-    - terraform -chdir="$TF_ROOT" init -backend=false -input=false
-    - terraform -chdir="$TF_ROOT" fmt -check -recursive
-    - terraform -chdir="$TF_ROOT" validate
+    - cp -R "$TF_ROOT" terraform-validation
+    - rm -f terraform-validation/backend.tf
+    - terraform -chdir=terraform-validation init -backend=false -input=false
+    - terraform -chdir=terraform-validation fmt -check -recursive
+    - terraform -chdir=terraform-validation validate
 
 plan_staging:
   stage: plan_staging

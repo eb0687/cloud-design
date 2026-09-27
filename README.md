@@ -104,10 +104,16 @@ For a future AWS deployment:
 
 Run Terraform commands from the `terraform/` directory.
 
+The S3 backend is configured only during deployment. For validation without
+AWS credentials, validate a temporary copy without the backend declaration:
+
 ```sh
-terraform fmt -check -recursive
-terraform init -backend=false
-terraform validate
+rm -rf /tmp/cloud-design-terraform-validation
+cp -R terraform /tmp/cloud-design-terraform-validation
+rm /tmp/cloud-design-terraform-validation/backend.tf
+terraform -chdir=/tmp/cloud-design-terraform-validation init -backend=false
+terraform -chdir=/tmp/cloud-design-terraform-validation fmt -check -recursive
+terraform -chdir=/tmp/cloud-design-terraform-validation validate
 ```
 
 ## GitLab Infrastructure Pipeline
