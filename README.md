@@ -321,3 +321,5 @@ EKS, load balancers, NAT gateways, EC2 worker nodes, EBS volumes, and data trans
 - Users access https://api.<domain> through Route 53, the ALB, Cognito authentication, and finally the API gateway.
 - Monitor logs in CloudWatch and scaling through Kubernetes HPAs and Cluster Autoscaler.
 - Destroy temporary infrastructure with Terraform and manually remove retained EBS volumes when finished.
+
+test ci
